@@ -29,26 +29,22 @@ else:
 st.write(f"✅ 계산된 발전용량: {capacity} kW")
 st.write(f"✅ 적용 REC 가중치: {rec_weight}")
 
-# ===== 4️⃣ SMP/REC 단가 입력 (소수점 2자리까지 반영) =====
+# ===== 4️⃣ SMP/REC 단가 입력 =====
 st.sidebar.header("3️⃣ 가격 입력")
 smp = st.sidebar.number_input("SMP 단가(원/kWh)", value=120.00, step=0.01)
-rec_price = st.sidebar.number_input("REC 단가(원/kWh)", value=65.00, step=0.01)  # 기본 65원/kWh
+rec_price = st.sidebar.number_input("REC 단가(원/kWh)", value=65.00, step=0.01)
 
-# ===== 5️⃣ 2025년 육지 SMP 가격 표시 =====
+# ===== 5️⃣ SMP 월별 가격 표시 (2행) =====
 st.subheader("📊 2025년 육지 SMP 가격")
-smp_data = {
-    "월": ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"],
-    "SMP 가격 (원/kWh)": [
-        117.11, 116.39, 115.00, 114.50, 113.80, 113.20, 112.50, 112.00, 112.91, 113.00, 113.20, 113.50
-    ]
-}
-smp_df = pd.DataFrame(smp_data)
-smp_df = smp_df.set_index("월").T  # 월을 인덱스로 설정하여 2열 구조로 변환
-st.dataframe(smp_df.style.format({"SMP 가격 (원/kWh)": "{:.2f}"}), width=300, height=200)
+months = ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월"]  # 필요시 12월까지 추가 가능
+smp_values = [117.11, 116.39, 113.12, 124.63, 125.5, 118.02, 120.39, 117.39, 112.9]
+
+smp_df = pd.DataFrame([months, smp_values], index=["월", "SMP 가격(원/kWh)"])
+st.dataframe(smp_df.style.format("{:.2f}"), width=900, height=100)  # 가로 길이 늘려서 한눈에 보기
 
 # ===== 6️⃣ 금융 정보 입력 =====
 st.sidebar.header("4️⃣ 금융 정보")
-default_total_cost = int((capacity / 100) * 1200)  # 100kW당 1200만원
+default_total_cost = int((capacity / 100) * 1200)
 total_cost = st.sidebar.number_input("총 설치비용(만원)", value=default_total_cost, step=1)
 self_ratio = st.sidebar.number_input("자기자본 비율(%)", value=20, step=1)
 loan_amount = total_cost * (1 - self_ratio / 100)
@@ -57,8 +53,8 @@ years_list = [5, 10, 20]
 
 # ===== 7️⃣ 수익 및 금융 계산 =====
 if st.button("💰 계산하기"):
-    utilization_rate = 0.16  # 연간 평균 발전률
-    annual_generation = capacity * 1000 * 24 * 365 * utilization_rate  # kWh
+    utilization_rate = 0.16
+    annual_generation = capacity * 1000 * 24 * 365 * utilization_rate
 
     annual_smp = annual_generation * smp
     annual_rec = annual_generation * rec_price * rec_weight

@@ -36,39 +36,47 @@ smp_manual = st.sidebar.number_input("SMP 단가(원/kWh, 수동 입력)", value
 rec_price_mwh = st.sidebar.number_input("REC 단가(원/MWh)", value=65000, step=1)
 rec_price = rec_price_mwh / 1000  # kWh 단위
 
-# ===== 5. 전력거래소 SMP 월별 가격 가져오기 =====
-smp_url = "https://www.kpx.or.kr/smpMonthly.es?mid=a10404080300&device=pc"
+# ===== 5. 전력거래소 SMP 월별 가격 가져오기 (수정) =====
+smp_url = "https://new.kpx.or.kr/smpMonthly.es?mid=a10606080300&device=pc"
 highlighted_smp = None
 
 try:
     tables = pd.read_html(smp_url)
     smp_df = tables[0]
 
-    # 전체 컬럼 확인 후 필요한 컬럼만 선택
-    if '월' in smp_df.columns and '육지SMP' in smp_df.columns:
-        smp_df = smp_df[['월', '육지SMP']]
-    else:
-        st.warning("SMP 테이블 컬럼 확인 필요. 수동 입력값 사용.")
-        smp_df = pd.DataFrame(columns=['월', '육지SMP'])
+    # '구분' 컬럼이 포함된 행만 선택
+    smp_df = smp_df[smp_df['구분'].str.contains('육지 SMP')]
 
-    previous_month = datetime.now().month - 1 if datetime.now().month > 1 else 12
+    # '구분' 컬럼을 인덱스로 설정하고, 첫 번째 행을 컬럼명으로 설정
+    smp_df.columns = smp_df.iloc[0]
+    smp_df = smp_df.drop(0)
+
+    # '2025년' 컬럼만 선택
+    smp_df = smp_df[['2025년']]
+
+    # 컬럼명을 '월별 SMP'로 변경
+    smp_df.columns = ['월별 SMP']
+
+    # 월별 SMP 가격을 정수로 변환
+    smp_df['월별 SMP'] = smp_df['월별 SMP'].apply(pd.to_numeric, errors='coerce')
+
+    # 이전 달 SMP 가격 강조
+    current_month = datetime.now().month
+    previous_month = current_month - 1 if current_month > 1 else 12
+    highlighted_smp = smp_df.iloc[previous_month - 1, 0]
 
     st.subheader("📈 월별 SMP 가격")
     for idx, row in smp_df.iterrows():
-        month_str = str(row['월'])
-        try:
-            month_num = int(month_str.split('-')[1])
-        except:
-            continue
-        if month_num == previous_month:
-            highlighted_smp = row['육지SMP']
-            st.markdown(f"**{month_str} SMP 가격 (이전 달 기준): {highlighted_smp:,} 원/kWh**")
+        month_str = str(idx + 1) + "월"
+        if idx + 1 == previous_month:
+            st.markdown(f"**{month_str} SMP 가격 (이전 달 기준): {row['월별 SMP']:,} 원/kWh**")
         else:
-            st.write(f"{month_str} SMP 가격: {row['육지SMP']:,} 원/kWh")
+            st.write(f"{month_str} SMP 가격: {row['월별 SMP']:,} 원/kWh")
 
 except Exception as e:
     st.warning(f"SMP 데이터 불러오기 실패: {e}")
     highlighted_smp = smp_manual
+
 
 # ===== 6. 금융 정보 입력 =====
 st.sidebar.header("4️⃣ 금융 정보")
@@ -99,3 +107,4 @@ if st.button("💰 계산하기"):
         r = interest_rate / 12
         monthly_payment = loan_amount * (r * (1 + r) ** n) / ((1 + r) ** n - 1)
         st.write(f"{years}년 상환 월 납부금: {int(monthly_payment):,} 만원")
+

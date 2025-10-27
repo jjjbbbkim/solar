@@ -1,5 +1,4 @@
 import streamlit as st
-from datetime import datetime
 
 st.set_page_config(page_title="태양광 수익 계산기", layout="wide")
 st.title("🌞 태양광 발전 수익 계산기")
@@ -29,16 +28,14 @@ else:
 st.write(f"✅ 계산된 발전용량: {capacity} kW")
 st.write(f"✅ 적용 REC 가중치: {rec_weight}")
 
-# ===== 4️⃣ SMP/REC 단가 입력 =====
+# ===== 4️⃣ SMP/REC 단가 입력 (수동 고정) =====
 st.sidebar.header("3️⃣ 가격 입력")
 smp_manual = st.sidebar.number_input("SMP 단가(원/kWh)", value=120, step=1)
+highlighted_smp = smp_manual  # SMP는 입력값 그대로 사용
 rec_price_mwh = st.sidebar.number_input("REC 단가(원/MWh)", value=65000, step=1)
-rec_price = rec_price_mwh / 1000  # kWh 단위
+rec_price = rec_price_mwh / 1000  # kWh 단위로 변환
 
-# ===== 5️⃣ SMP 월별 데이터 - 안정화를 위해 수동 입력 사용 =====
-highlighted_smp = smp_manual  # 항상 수동 입력값 사용
-
-# ===== 6️⃣ 금융 정보 입력 =====
+# ===== 5️⃣ 금융 정보 입력 =====
 st.sidebar.header("4️⃣ 금융 정보")
 default_total_cost = int((capacity / 100) * 1200)  # 100kW당 1200만원
 total_cost = st.sidebar.number_input("총 설치비용(만원)", value=default_total_cost, step=1)
@@ -47,7 +44,7 @@ loan_amount = total_cost * (1 - self_ratio / 100)
 interest_rate = 0.06
 years_list = [5, 10, 20]
 
-# ===== 7️⃣ 수익 및 금융 계산 =====
+# ===== 6️⃣ 수익 및 금융 계산 =====
 if st.button("💰 계산하기"):
     utilization_rate = 0.16  # 연간 평균 발전률
     annual_generation = capacity * 1000 * 24 * 365 * utilization_rate  # kWh

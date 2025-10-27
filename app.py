@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 
 st.set_page_config(page_title="태양광 수익 계산기", layout="wide")
 st.title("🌞 태양광 발전 수익 계산기")
@@ -28,12 +29,21 @@ else:
 st.write(f"✅ 계산된 발전용량: {capacity} kW")
 st.write(f"✅ 적용 REC 가중치: {rec_weight}")
 
-# ===== 4️⃣ SMP/REC 단가 입력 (수동 고정, kWh 기준) =====
+# ===== 4️⃣ SMP/REC 단가 입력 (소수점 2자리까지 반영) =====
 st.sidebar.header("3️⃣ 가격 입력")
-smp = st.sidebar.number_input("SMP 단가(원/kWh)", value=120, step=1)
-rec_price = st.sidebar.number_input("REC 단가(원/kWh)", value=65, step=1)  # 기본 65원/kWh
+smp = st.sidebar.number_input("SMP 단가(원/kWh)", value=120.00, step=0.01)
+rec_price = st.sidebar.number_input("REC 단가(원/kWh)", value=65.00, step=0.01)  # 기본 65원/kWh
 
-# ===== 5️⃣ 금융 정보 입력 =====
+# ===== 5️⃣ 월별 SMP 가격 표시 =====
+st.subheader("📊 월별 SMP 가격")
+smp_data = {
+    "월": ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"],
+    "SMP 가격 (원/kWh)": [120.50, 118.75, 122.30, 124.00, 123.50, 121.80, 119.60, 118.00, 117.50, 116.80, 115.90, 114.60]
+}
+smp_df = pd.DataFrame(smp_data)
+st.dataframe(smp_df.style.format({"SMP 가격 (원/kWh)": "{:.2f}"}))
+
+# ===== 6️⃣ 금융 정보 입력 =====
 st.sidebar.header("4️⃣ 금융 정보")
 default_total_cost = int((capacity / 100) * 1200)  # 100kW당 1200만원
 total_cost = st.sidebar.number_input("총 설치비용(만원)", value=default_total_cost, step=1)
@@ -42,7 +52,7 @@ loan_amount = total_cost * (1 - self_ratio / 100)
 interest_rate = 0.06
 years_list = [5, 10, 20]
 
-# ===== 6️⃣ 수익 및 금융 계산 =====
+# ===== 7️⃣ 수익 및 금융 계산 =====
 if st.button("💰 계산하기"):
     utilization_rate = 0.16  # 연간 평균 발전률
     annual_generation = capacity * 1000 * 24 * 365 * utilization_rate  # kWh
@@ -53,13 +63,13 @@ if st.button("💰 계산하기"):
 
     st.subheader("📊 수익 결과")
     st.write(f"연간 발전량: {int(annual_generation):,} kWh")
-    st.write(f"연간 SMP 수익: {int(annual_smp):,} 원")
-    st.write(f"연간 REC 수익: {int(annual_rec):,} 원")
-    st.write(f"총 연간 수익: {int(annual_revenue):,} 원")
+    st.write(f"연간 SMP 수익: {annual_smp:,.2f} 원")
+    st.write(f"연간 REC 수익: {annual_rec:,.2f} 원")
+    st.write(f"총 연간 수익: {annual_revenue:,.2f} 원")
 
     st.subheader("🏦 금융 상환 시뮬레이션")
     for years in years_list:
         n = years * 12
         r = interest_rate / 12
         monthly_payment = loan_amount * (r * (1 + r) ** n) / ((1 + r) ** n - 1)
-        st.write(f"{years}년 상환 월 납부금: {int(monthly_payment):,} 만원")
+        st.write(f"{years}년 상환 월 납부금: {monthly_payment:,.2f} 만원")

@@ -38,14 +38,10 @@ rec_price = rec_price_mwh / 1000  # kWh 단위
 
 # ===== 5️⃣ 전력거래소 SMP 월별 가격 가져오기 =====
 smp_url = "https://new.kpx.or.kr/smpMonthly.es?mid=a10606080300&device=pc"
-highlighted_smp = None
 
 try:
     tables = pd.read_html(smp_url)
     smp_df = tables[0]
-
-    # 컬럼명 확인용 (배포 후 제거 가능)
-    st.write("컬럼명 확인:", smp_df.columns)
 
     # '구분' 컬럼이 포함된 행만 선택
     smp_df = smp_df[smp_df['구분'].str.contains('육지 SMP')]
@@ -57,32 +53,19 @@ try:
     # 숫자형 컬럼만 선택
     smp_df = smp_df.select_dtypes(include=['number'])
 
-    # 가장 최근 연도의 컬럼 선택
-    current_year = datetime.now().year
-    recent_year_column = str(current_year)
-    if recent_year_column not in smp_df.columns:
-        recent_year_column = str(current_year - 1)
-    smp_df = smp_df[[recent_year_column]]
-
     # 월별 SMP 가격을 정수로 변환
-    smp_df[recent_year_column] = smp_df[recent_year_column].apply(pd.to_numeric, errors='coerce')
+    smp_df = smp_df.apply(pd.to_numeric, errors='coerce')
 
-    # 이전 달 SMP 가격 강조
-    current_month = datetime.now().month
-    previous_month = current_month - 1 if current_month > 1 else 12
-    highlighted_smp = smp_df.iloc[previous_month - 1, 0]
-
+    # 월별 SMP 가격을 표 형식으로 출력
+    smp_df.index = smp_df.index + 1  # 월을 1부터 시작하도록 설정
+    smp_df = smp_df.rename(columns={smp_df.columns[0]: 'SMP 가격 (원/kWh)'})
+    smp_df.index.name = '월'
     st.subheader("📈 월별 SMP 가격")
-    for idx, row in smp_df.iterrows():
-        month_str = str(idx + 1) + "월"
-        if idx + 1 == previous_month:
-            st.markdown(f"**{month_str} SMP 가격 (이전 달 기준): {row[recent_year_column]:,} 원/kWh**")
-        else:
-            st.write(f"{month_str} SMP 가격: {row[recent_year_column]:,} 원/kWh")
+    st.write(smp_df)
 
 except Exception as e:
     st.warning(f"SMP 데이터 불러오기 실패: {e}")
-    highlighted_smp = smp_manual
+    st.write("SMP 데이터를 불러오는 데 실패했습니다. 수동으로 입력해주세요.")
 
 # ===== 6️⃣ 금융 정보 입력 =====
 st.sidebar.header("4️⃣ 금융 정보")
@@ -113,3 +96,4 @@ if st.button("💰 계산하기"):
         r = interest_rate / 12
         monthly_payment = loan_amount * (r * (1 + r) ** n) / ((1 + r) ** n - 1)
         st.write(f"{years}년 상환 월 납부금: {int(monthly_payment):,} 만원")
+

@@ -41,7 +41,7 @@ smp_data = {
     "SMP 가격 (원/kWh)": [120.50, 118.75, 122.30, 124.00, 123.50, 121.80, 119.60, 118.00, 117.50, 116.80, 115.90, 114.60]
 }
 smp_df = pd.DataFrame(smp_data)
-st.dataframe(smp_df.style.format({"SMP 가격 (원/kWh)": "{:.2f}"}))
+st.dataframe(smp_df.style.format({"SMP 가격 (원/kWh)": "{:.2f}"}), width=300, height=200)
 
 # ===== 6️⃣ 금융 정보 입력 =====
 st.sidebar.header("4️⃣ 금융 정보")

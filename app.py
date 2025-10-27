@@ -43,7 +43,14 @@ highlighted_smp = None
 try:
     tables = pd.read_html(smp_url)
     smp_df = tables[0]
-    smp_df.columns = ['월', '육지SMP', '도서SMP']  # 컬럼 이름 확인 필요
+
+    # 전체 컬럼 확인 후 필요한 컬럼만 선택
+    if '월' in smp_df.columns and '육지SMP' in smp_df.columns:
+        smp_df = smp_df[['월', '육지SMP']]
+    else:
+        st.warning("SMP 테이블 컬럼 확인 필요. 수동 입력값 사용.")
+        smp_df = pd.DataFrame(columns=['월', '육지SMP'])
+
     previous_month = datetime.now().month - 1 if datetime.now().month > 1 else 12
 
     st.subheader("📈 월별 SMP 가격")
@@ -58,6 +65,7 @@ try:
             st.markdown(f"**{month_str} SMP 가격 (이전 달 기준): {highlighted_smp:,} 원/kWh**")
         else:
             st.write(f"{month_str} SMP 가격: {row['육지SMP']:,} 원/kWh")
+
 except Exception as e:
     st.warning(f"SMP 데이터 불러오기 실패: {e}")
     highlighted_smp = smp_manual

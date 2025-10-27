@@ -1,5 +1,4 @@
 import streamlit as st
-import pandas as pd
 from datetime import datetime
 
 st.set_page_config(page_title="태양광 수익 계산기", layout="wide")
@@ -32,48 +31,12 @@ st.write(f"✅ 적용 REC 가중치: {rec_weight}")
 
 # ===== 4️⃣ SMP/REC 단가 입력 =====
 st.sidebar.header("3️⃣ 가격 입력")
-smp_manual = st.sidebar.number_input("SMP 단가(원/kWh, 수동 입력)", value=120, step=1)
+smp_manual = st.sidebar.number_input("SMP 단가(원/kWh)", value=120, step=1)
 rec_price_mwh = st.sidebar.number_input("REC 단가(원/MWh)", value=65000, step=1)
 rec_price = rec_price_mwh / 1000  # kWh 단위
 
-# ===== 5️⃣ SMP 월별 데이터 크롤링 =====
-smp_url = "https://new.kpx.or.kr/smpMonthly.es?mid=a10606080300&device=pc"
-highlighted_smp = None
-
-try:
-    tables = pd.read_html(smp_url)
-    smp_df = tables[0]
-
-    # '구분' 컬럼이 포함된 행만 선택
-    smp_df = smp_df[smp_df['구분'].str.contains('육지 SMP')]
-
-    # 첫 번째 행을 컬럼명으로 설정
-    smp_df.columns = smp_df.iloc[0]
-    smp_df = smp_df.drop(0)
-
-    # 숫자형 컬럼만 선택
-    smp_df = smp_df.select_dtypes(include=['number'])
-
-    # 월별 SMP 가격을 Python int로 변환
-    smp_df = smp_df.applymap(lambda x: int(x) if pd.notnull(x) else x)
-
-    # 월별 표 출력
-    smp_df.index = smp_df.index + 1
-    smp_df = smp_df.rename(columns={smp_df.columns[0]: 'SMP 가격 (원/kWh)'})
-    smp_df.index.name = '월'
-
-    # 이전 달 SMP 강조
-    current_month = datetime.now().month
-    previous_month = current_month - 1 if current_month > 1 else 12
-    highlighted_smp = smp_df.loc[previous_month, 'SMP 가격 (원/kWh)']
-
-    st.subheader("📈 월별 SMP 가격")
-    st.write(smp_df.style.apply(lambda x: ['font-weight: bold; color: red' if idx+1==previous_month else '' for idx in x.index], axis=1))
-
-except Exception as e:
-    st.warning(f"SMP 데이터 불러오기 실패: {e}")
-    highlighted_smp = smp_manual
-    st.write("SMP 데이터를 불러오는 데 실패했습니다. 수동 입력값 사용.")
+# ===== 5️⃣ SMP 월별 데이터 - 안정화를 위해 수동 입력 사용 =====
+highlighted_smp = smp_manual  # 항상 수동 입력값 사용
 
 # ===== 6️⃣ 금융 정보 입력 =====
 st.sidebar.header("4️⃣ 금융 정보")
@@ -86,9 +49,10 @@ years_list = [5, 10, 20]
 
 # ===== 7️⃣ 수익 및 금융 계산 =====
 if st.button("💰 계산하기"):
-    utilization_rate = 0.16
-    annual_generation = capacity * 1000 * 24 * 365 * utilization_rate
-    annual_smp = annual_generation * (highlighted_smp if highlighted_smp else smp_manual)
+    utilization_rate = 0.16  # 연간 평균 발전률
+    annual_generation = capacity * 1000 * 24 * 365 * utilization_rate  # kWh
+
+    annual_smp = annual_generation * highlighted_smp
     annual_rec = annual_generation * rec_price * rec_weight
     annual_revenue = annual_smp + annual_rec
 

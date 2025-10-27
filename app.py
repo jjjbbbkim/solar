@@ -28,12 +28,10 @@ else:
 st.write(f"✅ 계산된 발전용량: {capacity} kW")
 st.write(f"✅ 적용 REC 가중치: {rec_weight}")
 
-# ===== 4️⃣ SMP/REC 단가 입력 (수동 고정) =====
+# ===== 4️⃣ SMP/REC 단가 입력 (수동 고정, kWh 기준) =====
 st.sidebar.header("3️⃣ 가격 입력")
-smp_manual = st.sidebar.number_input("SMP 단가(원/kWh)", value=120, step=1)
-highlighted_smp = smp_manual  # SMP는 입력값 그대로 사용
-rec_price_mwh = st.sidebar.number_input("REC 단가(원/MWh)", value=65000, step=1)
-rec_price = rec_price_mwh / 1000  # kWh 단위로 변환
+smp = st.sidebar.number_input("SMP 단가(원/kWh)", value=120, step=1)
+rec_price = st.sidebar.number_input("REC 단가(원/kWh)", value=65, step=1)  # 기본 65원/kWh
 
 # ===== 5️⃣ 금융 정보 입력 =====
 st.sidebar.header("4️⃣ 금융 정보")
@@ -49,7 +47,7 @@ if st.button("💰 계산하기"):
     utilization_rate = 0.16  # 연간 평균 발전률
     annual_generation = capacity * 1000 * 24 * 365 * utilization_rate  # kWh
 
-    annual_smp = annual_generation * highlighted_smp
+    annual_smp = annual_generation * smp
     annual_rec = annual_generation * rec_price * rec_weight
     annual_revenue = annual_smp + annual_rec
 

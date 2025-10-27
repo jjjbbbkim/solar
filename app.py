@@ -32,31 +32,33 @@ st.write(f"✅ 적용 REC 가중치: {rec_weight}")
 
 # ===== 4️⃣ SMP/REC 단가 입력 =====
 st.sidebar.header("3️⃣ 가격 입력")
-# 현재 10월 기준, SMP 기본값은 9월 가격
-default_smp = 112.9
+default_smp = 112.9  # 현재 달 기준 9월 SMP
 smp = st.sidebar.number_input("SMP 단가(원/kWh)", value=default_smp, step=0.01)
 rec_price = st.sidebar.number_input("REC 단가(원/kWh)", value=65.00, step=0.01)
 
-# ===== 5️⃣ SMP 월별 가격 표시 (강조 버전) =====
+# ===== 5️⃣ SMP 월별 가격 표시 (강조 2열 표) =====
 st.subheader("📊 2025년 육지 SMP 가격")
+months = ["1월","2월","3월","4월","5월","6월","7월","8월","9월"]
+smp_values = [117.11,116.39,113.12,124.63,125.5,118.02,120.39,117.39,112.9]
 
-months = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"]
-smp_values = [117.11,116.39,113.12,124.63,125.5,118.02,120.39,117.39,112.9,113.5,114.0,115.2]
+smp_df = pd.DataFrame({
+    "월": months,
+    "SMP 가격(원/kWh)": smp_values
+})
 
-smp_df = pd.DataFrame([months, smp_values], index=["월","SMP 가격(원/kWh)"])
-smp_df = smp_df.T  # 2열 구조
-
-# 가격 강조: 115원 이하는 빨간색, 120원 이상은 파란색
-def highlight_price(val):
-    if val <= 115:
-        color = 'red'
-    elif val >= 120:
-        color = 'blue'
+# 강조 함수: 최고값 빨강, 최저값 파랑
+def highlight_extremes(val):
+    if val == smp_df["SMP 가격(원/kWh)"].max():
+        return 'color: red; font-weight: bold'
+    elif val == smp_df["SMP 가격(원/kWh)"].min():
+        return 'color: blue; font-weight: bold'
     else:
-        color = 'black'
-    return f'color: {color}; font-weight: bold'
+        return ''
 
-st.table(smp_df.style.format({"SMP 가격(원/kWh)":"{:.2f}"}).applymap(highlight_price, subset=["SMP 가격(원/kWh)"]))
+st.table(
+    smp_df.style.applymap(highlight_extremes, subset=["SMP 가격(원/kWh)"])
+    .format({"SMP 가격(원/kWh)":"{:.2f}"})
+)
 
 # ===== 6️⃣ 금융 정보 입력 =====
 st.sidebar.header("4️⃣ 금융 정보")
@@ -69,7 +71,7 @@ years_list = [5, 10, 20]
 
 # ===== 7️⃣ 수익 및 금융 계산 =====
 if st.button("💰 계산하기"):
-    utilization_rate = 0.16
+    utilization_rate = 0.16  # 연간 평균 발전률
     annual_generation = capacity * 1000 * 24 * 365 * utilization_rate  # kWh
 
     annual_smp = annual_generation * smp

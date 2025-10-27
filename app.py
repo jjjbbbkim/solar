@@ -32,12 +32,13 @@ st.write(f"✅ 적용 REC 가중치: {rec_weight}")
 
 # ===== 4️⃣ SMP/REC 단가 입력 =====
 st.sidebar.header("3️⃣ 가격 입력")
-default_smp = 112.9  # 현재 달 기준 9월 SMP
+default_smp = 112.9  # 9월 SMP 기준
 smp = st.sidebar.number_input("SMP 단가(원/kWh)", value=default_smp, step=0.01)
 rec_price = st.sidebar.number_input("REC 단가(원/kWh)", value=65.00, step=0.01)
 
-# ===== 5️⃣ SMP 월별 가격 표시 (강조 2열 표) =====
+# ===== 5️⃣ SMP 월별 가격 표시 (2열 세로표, 강조) =====
 st.subheader("📊 2025년 육지 SMP 가격")
+
 months = ["1월","2월","3월","4월","5월","6월","7월","8월","9월"]
 smp_values = [117.11,116.39,113.12,124.63,125.5,118.02,120.39,117.39,112.9]
 
@@ -55,6 +56,7 @@ def highlight_extremes(val):
     else:
         return ''
 
+# 2열 세로표 출력 (인덱스 제거)
 st.table(
     smp_df.style.applymap(highlight_extremes, subset=["SMP 가격(원/kWh)"])
     .format({"SMP 가격(원/kWh)":"{:.2f}"})

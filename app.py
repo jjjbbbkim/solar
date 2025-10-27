@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 
+# ===== 페이지 설정 =====
 st.set_page_config(page_title="태양광 수익 계산기", layout="wide")
 st.title("🌞 태양광 발전 수익 계산기")
 
@@ -31,20 +32,35 @@ st.write(f"✅ 적용 REC 가중치: {rec_weight}")
 
 # ===== 4️⃣ SMP/REC 단가 입력 =====
 st.sidebar.header("3️⃣ 가격 입력")
-smp = st.sidebar.number_input("SMP 단가(원/kWh)", value=120.00, step=0.01)
+# 현재 10월 기준, SMP 기본값은 9월 가격
+default_smp = 112.9
+smp = st.sidebar.number_input("SMP 단가(원/kWh)", value=default_smp, step=0.01)
 rec_price = st.sidebar.number_input("REC 단가(원/kWh)", value=65.00, step=0.01)
 
-# ===== 5️⃣ SMP 월별 가격 표시 (2행) =====
+# ===== 5️⃣ SMP 월별 가격 표시 (강조 버전) =====
 st.subheader("📊 2025년 육지 SMP 가격")
-months = ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월"]  # 필요시 12월까지 추가 가능
-smp_values = [117.11, 116.39, 113.12, 124.63, 125.5, 118.02, 120.39, 117.39, 112.9]
 
-smp_df = pd.DataFrame([months, smp_values], index=["월", "SMP 가격(원/kWh)"])
-st.dataframe(smp_df.style.format("{:.2f}"), width=900, height=100)  # 가로 길이 늘려서 한눈에 보기
+months = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"]
+smp_values = [117.11,116.39,113.12,124.63,125.5,118.02,120.39,117.39,112.9,113.5,114.0,115.2]
+
+smp_df = pd.DataFrame([months, smp_values], index=["월","SMP 가격(원/kWh)"])
+smp_df = smp_df.T  # 2열 구조
+
+# 가격 강조: 115원 이하는 빨간색, 120원 이상은 파란색
+def highlight_price(val):
+    if val <= 115:
+        color = 'red'
+    elif val >= 120:
+        color = 'blue'
+    else:
+        color = 'black'
+    return f'color: {color}; font-weight: bold'
+
+st.table(smp_df.style.format({"SMP 가격(원/kWh)":"{:.2f}"}).applymap(highlight_price, subset=["SMP 가격(원/kWh)"]))
 
 # ===== 6️⃣ 금융 정보 입력 =====
 st.sidebar.header("4️⃣ 금융 정보")
-default_total_cost = int((capacity / 100) * 1200)
+default_total_cost = int((capacity / 100) * 1200)  # 100kW당 1200만원
 total_cost = st.sidebar.number_input("총 설치비용(만원)", value=default_total_cost, step=1)
 self_ratio = st.sidebar.number_input("자기자본 비율(%)", value=20, step=1)
 loan_amount = total_cost * (1 - self_ratio / 100)
@@ -54,7 +70,7 @@ years_list = [5, 10, 20]
 # ===== 7️⃣ 수익 및 금융 계산 =====
 if st.button("💰 계산하기"):
     utilization_rate = 0.16
-    annual_generation = capacity * 1000 * 24 * 365 * utilization_rate
+    annual_generation = capacity * 1000 * 24 * 365 * utilization_rate  # kWh
 
     annual_smp = annual_generation * smp
     annual_rec = annual_generation * rec_price * rec_weight

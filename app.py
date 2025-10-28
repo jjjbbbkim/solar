@@ -1,149 +1,90 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
+import numpy as np
 
-# 페이지 기본 설정
-st.set_page_config(page_title="태양광 수익 계산기", layout="wide")
-st.title("🌞 태양광 수익 계산기 (2025년 기준, 3.6시간 발전 기준)")
+# matplotlib 자동 설치 (로컬에서 실행할 때 유용)
+try:
+    import matplotlib.pyplot as plt
+except ModuleNotFoundError:
+    import os
+    os.system("pip install matplotlib")
+    import matplotlib.pyplot as plt
 
-# -----------------------
-# 1️⃣ SMP & REC 표 (2025년 1~9월 데이터)
-# -----------------------
-months = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"]
-smp_values = [117.11,116.39,113.12,124.63,125.50,118.02,120.39,117.39,112.90,None,None,None]
-rec_values = [69.76,72.16,72.15,72.41,72.39,71.96,71.65,71.86,71.97,None,None,None]
+# -----------------------------
+# 기본 데이터 (2025년 기준 SMP, REC 단가)
+# -----------------------------
+data = {
+    "월": ["1월","2월","3월","4월","5월","6월","7월","8월","9월"],
+    "SMP(원/kWh)": [117.11,116.39,113.12,124.63,125.50,118.02,120.39,117.39,112.90],
+    "REC(원/kWh)": [69.76,72.16,72.15,72.41,72.39,71.96,71.65,71.86,71.97],
+}
+smp_df = pd.DataFrame(data)
 
-smp_rec_df = pd.DataFrame({
-    "월": months,
-    "SMP 가격(원/kWh)": smp_values,
-    "REC 가격(원/kWh)": rec_values
-})
+# -----------------------------
+# 1️⃣ 기본정보
+# -----------------------------
+st.title("태양광 수익성 분석 대시보드")
+st.write("기준: 하루 3.6시간 발전 기준, 2025년 9월 SMP 112.9원 기준")
 
-# 강조 함수 (최고 빨강, 최저 파랑)
-def highlight_extremes(val, column):
-    if pd.isna(val): 
-        return ''
-    col_max = smp_rec_df[column].max()
-    col_min = smp_rec_df[column].min()
-    if val == col_max:
-        return 'color: red; font-weight: bold'
-    elif val == col_min:
-        return 'color: blue; font-weight: bold'
-    else:
-        return ''
+# 발전소 타입 선택
+type_choice = st.radio("발전소 타입", ["노지형", "지붕형"], horizontal=True)
 
-# 스타일 적용
-smp_style = (
-    smp_rec_df.style
-    .format({"SMP 가격(원/kWh)": "{:.2f}", "REC 가격(원/kWh)": "{:.2f}"})
-    .applymap(lambda v: highlight_extremes(v, "SMP 가격(원/kWh)"), subset=["SMP 가격(원/kWh)"])
-    .applymap(lambda v: highlight_extremes(v, "REC 가격(원/kWh)"), subset=["REC 가격(원/kWh)"])
-)
-
-st.markdown("### 📊 2025년 월별 육지 SMP & REC 단가")
-st.table(smp_style.hide(axis="index"))
-
-# 기준 단가 (9월)
-current_smp = 112.90
-current_rec = 71.97
-
-# -----------------------
-# 2️⃣ 발전소 타입 선택
-# -----------------------
-st.markdown("### ⚙️ 1. 발전소 타입 선택")
-plant_type = st.radio("발전소 타입을 선택하세요", ["노지", "지붕"])
-
-if plant_type == "노지":
-    rec_weight = 1.0
-    base_area = 3000  # 평당 1MW
-    install_cost_per_100kw = 12000  # 1.2억 (만원 단위)
+# 설치비용 계산
+if type_choice == "노지형":
+    install_cost = 120_000_000  # 1.2억원
+    rec_factor = 1.0
 else:
-    rec_weight = 1.5
-    base_area = 2000
-    install_cost_per_100kw = 10000  # 1.0억 (만원 단위)
+    install_cost = 100_000_000  # 1억원
+    rec_factor = 1.5
+    st.write(f"※ 지붕형 REC 가중치 적용: x{rec_factor}")
 
-st.info(f"🔹 선택된 타입: **{plant_type}형**  |  REC 가중치: **{rec_weight}배**")
+# -----------------------------
+# 2️⃣ SMP & REC 월별 단가표
+# -----------------------------
+st.subheader("📊 월별 SMP·REC 단가표")
+st.dataframe(smp_df.style.format({"SMP(원/kWh)":"{:.2f}", "REC(원/kWh)":"{:.2f}"}),
+             width=500, height=250)
 
-# -----------------------
-# 3️⃣ 부지 면적 입력
-# -----------------------
-st.markdown("### 📐 2. 부지 면적 입력")
-area_py = st.number_input("면적 (평)", min_value=1, value=3000, step=1)
-area_m2 = area_py * 3.3
-st.write(f"면적(㎡): {area_m2:,.0f} ㎡")
+# -----------------------------
+# 3️⃣ 회수기간 계산 함수
+# -----------------------------
+def calc_payback(smp, rec, capacity_kw=100, hours=3.6, rec_factor=1.0):
+    monthly_gen = capacity_kw * hours * 30  # kWh
+    revenue = (smp + rec * rec_factor) * monthly_gen  # 월 수익 (원)
+    annual_profit = revenue * 12  # 연간 수익
+    payback_years = install_cost / annual_profit
+    return payback_years
 
-capacity_kw = area_py / base_area * 1000
-st.success(f"예상 발전용량: {capacity_kw:.0f} kW")
+# -----------------------------
+# 4️⃣ 민감도 분석 (SMP, REC 변화에 따른 회수기간)
+# -----------------------------
+st.subheader("📈 민감도 분석 (SMP·REC 단가 변화에 따른 회수기간)")
 
-# -----------------------
-# 4️⃣ SMP & REC 단가 입력
-# -----------------------
-st.markdown("### ⚡ 3. SMP & REC 단가")
-smp = st.number_input("SMP 단가 (원/kWh)", value=float(current_smp))
-rec = st.number_input("REC 단가 (원/kWh)", value=float(current_rec))
-st.info(f"※ 기준 단가: 2025년 9월 SMP {current_smp}원/kWh, REC {current_rec}원/kWh 반영")
+smp_values = np.linspace(100, 140, 9)  # SMP 단가 범위
+rec_values = np.linspace(65, 80, 9)    # REC 단가 범위
 
-# -----------------------
-# 5️⃣ 금융 정보
-# -----------------------
-st.markdown("### 💰 4. 금융 정보")
-interest_rate = 6.0  # %
-loan_term = 20  # 년
-repay_options = [5, 10]
+payback_matrix = np.zeros((len(rec_values), len(smp_values)))
 
-# -----------------------
-# 6️⃣ 계산하기
-# -----------------------
-if st.button("💡 수익 계산하기"):
-    # 설치비용
-    total_install_cost = capacity_kw / 100 * install_cost_per_100kw  # 만원 단위
-    
-    # 연간 발전량 (3.6시간 기준)
-    annual_gen_kwh = capacity_kw * 3.6 * 365
-    
-    # 연간 수익
-    annual_revenue = annual_gen_kwh * (smp + rec * rec_weight)
-    
-    # 원금 회수 기간
-    payback_years = (total_install_cost * 10000) / annual_revenue
+for i, rec in enumerate(rec_values):
+    for j, smp in enumerate(smp_values):
+        payback_matrix[i, j] = calc_payback(smp, rec, rec_factor=rec_factor)
 
-    st.subheader("📈 계산 결과")
-    st.write(f"총 설치비용: {total_install_cost:,.0f} 만원 ({'노지' if plant_type == '노지' else '지붕'} 기준)")
-    st.write(f"연간 예상 발전량: {annual_gen_kwh:,.0f} kWh (**3.6시간 기준**)")
-    st.write(f"연간 예상 수익: {annual_revenue:,.0f} 원")
-    st.write(f"원금 회수 기간: {payback_years:.1f} 년")
+fig, ax = plt.subplots(figsize=(7,5))
+im = ax.imshow(payback_matrix, cmap="RdYlGn_r", origin="lower")
 
-    st.markdown("#### 💳 원리금 상환 시뮬레이션")
-    for repay_year in repay_options:
-        monthly_payment = (total_install_cost * (1 + interest_rate/100)) / (repay_year * 12)
-        st.write(f"{repay_year}년 상환 시 월 납입금: {monthly_payment:,.0f} 만원")
+# 축 라벨 및 틱
+ax.set_xticks(np.arange(len(smp_values)))
+ax.set_yticks(np.arange(len(rec_values)))
+ax.set_xticklabels([f"{v:.0f}" for v in smp_values])
+ax.set_yticklabels([f"{v:.0f}" for v in rec_values])
 
-    # -----------------------
-    # 7️⃣ 회수기간 변화 그래프
-    # -----------------------
-    st.markdown("### 📉 회수기간 민감도 분석 그래프")
+# 축 제목 명확히 표시
+ax.set_xlabel("SMP 단가 (원/kWh)", fontsize=12)
+ax.set_ylabel("REC 단가 (원/kWh)", fontsize=12)
+ax.set_title("SMP·REC 단가 변화에 따른 회수기간(년)", fontsize=13, weight="bold")
 
-    smp_variations = [smp * (1 - 0.1), smp, smp * (1 + 0.1)]
-    rec_variations = [rec * (1 - 0.1), rec, rec * (1 + 0.1)]
-    labels = ["-10%", "기준", "+10%"]
+# 색상바 (회수기간)
+cbar = plt.colorbar(im)
+cbar.set_label("회수기간 (년)", fontsize=12)
 
-    payback_smp = []
-    for s in smp_variations:
-        rev = annual_gen_kwh * (s + rec * rec_weight)
-        payback_smp.append((total_install_cost * 10000) / rev)
-
-    payback_rec = []
-    for r in rec_variations:
-        rev = annual_gen_kwh * (smp + r * rec_weight)
-        payback_rec.append((total_install_cost * 10000) / rev)
-
-    fig, ax = plt.subplots()
-    ax.plot(labels, payback_smp, marker='o', label='SMP 변동')
-    ax.plot(labels, payback_rec, marker='s', label='REC 변동')
-    ax.set_xlabel('변동률')
-    ax.set_ylabel('원금 회수 기간 (년)')
-    ax.set_title('SMP/REC 변동에 따른 회수기간 변화')
-    ax.legend()
-    ax.grid(True)
-
-    st.pyplot(fig)
+st.pyplot(fig)

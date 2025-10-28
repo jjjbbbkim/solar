@@ -81,12 +81,18 @@ if st.button("계산하기"):
     remaining_principal = np.maximum(total_install_cost - cumulative_profit, 0)
 
     # -----------------------------
-    # 원리금 균등상환 계산
+    # 원리금 균등상환 월별 계산
     # -----------------------------
     r = interest_rate / 100 / 12
     n = loan_term_years * 12
-    monthly_payment_full = total_install_cost * r * (1+r)**n / ((1+r)**n - 1)
+    monthly_payment = total_install_cost * r * (1+r)**n / ((1+r)**n - 1)
+
     remaining = total_install_cost
+    remaining_loan_array = []
+    for _ in range(n):
+        remaining -= monthly_payment
+        remaining_loan_array.append(max(remaining,0))
+    remaining_loan_array = np.array(remaining_loan_array)
 
     # -----------------------------
     # 연 단위 금융 모델 표
@@ -94,9 +100,8 @@ if st.button("계산하기"):
     years = np.arange(1, loan_term_years+1)
     summary_yearly = pd.DataFrame({
         "총 누적 수익 (만원)": [int(cumulative_profit[y*12-1]/10_000) for y in years],
-        "월별 상환금 (만원)": [int(round(monthly_payment_full/10_000,0)*12) for y in years],
+        "월별 상환금 (만원)": [int(round(monthly_payment/10_000,0)*12) for y in years],
         "월별 유지비용 (만원)": [int(monthly_maintenance_array[(y-1)*12:y*12].sum()/10_000) for y in years],
-        # 남은 원금/순수익: 남아있으면 음수, 순수익이면 양수
         "남은 원금/순수익 (만원)": [
             -int(remaining_principal[y*12-1]/10_000) if remaining_principal[y*12-1]>0
             else int((cumulative_profit[y*12-1]-total_install_cost)/10_000)
@@ -112,22 +117,20 @@ if st.button("계산하기"):
     st.dataframe(summary_yearly.style.applymap(color_remaining, subset=['남은 원금/순수익 (만원)']), width=900, height=500)
 
     # -----------------------------
-    # 원리금 균등상환 표 (연 단위, 20년차에 잔여원금 0)
+    # 연 단위 원리금 균등상환 표 (월별 상환금 → 연합산, 마지막 20년차에 잔여원금 0)
     # -----------------------------
     loan_df_yearly = pd.DataFrame(columns=["월별 상환금 (만원)", "월별 유지비용 (만원)", "잔여 원금 (만원)"])
     remaining = total_install_cost
     for y in years:
         start_month = (y-1)*12
         end_month = y*12
+        yearly_payment = monthly_payment * 12
         yearly_maintenance = monthly_maintenance_array[start_month:end_month].sum()
-        yearly_payment = monthly_payment_full * 12
-        remaining -= yearly_payment
-        if y == loan_term_years:
-            remaining = 0  # 마지막 20년차에 모두 상환
+        remaining_year_end = remaining_loan_array[end_month-1]
         loan_df_yearly.loc[f"{y}년차"] = [
-            int(round(yearly_payment / 10_000, 0)),
-            int(round(yearly_maintenance / 10_000, 0)),
-            int(round(max(remaining,0)/10_000,0))
+            int(round(yearly_payment / 10_000,0)),
+            int(round(yearly_maintenance / 10_000,0)),
+            int(round(remaining_year_end/10_000,0))
         ]
 
     st.subheader("🏦 원리금 균등상환 (연 단위)")

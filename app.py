@@ -99,7 +99,7 @@ if st.button("계산하기"):
     # 5️⃣ 금융 모델 표 (12개월 단위)
     # -----------------------------
     summary_df = pd.DataFrame({
-        "1년차": (months_array/12).astype(int),
+        "운영 연수": (months_array/12).astype(int),
         "총 누적 수익 (만원)": (cumulative_profit/10_000).round(1),
         "남은 원금 (만원)": (remaining_principal/10_000).round(1),
         "월별 상환금 (만원)": (monthly_payment/10_000 + monthly_maintenance_array/10_000).round(1),
@@ -126,4 +126,4 @@ if st.button("계산하기"):
         payback_years = payback_month / 12
         st.success(f"✅ 예상 회수기간: 약 {payback_years:.1f}년 ({payback_month}개월)")
     else:
-        st.
+        st.warning("❗ 대출 기간 내 투자비 회수가 어려움")

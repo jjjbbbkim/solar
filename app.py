@@ -3,87 +3,94 @@ import pandas as pd
 import numpy as np
 
 # -----------------------------
-# 1️⃣ 기본 데이터 (2025년 SMP, REC 단가)
+# 1️⃣ 페이지 설정
 # -----------------------------
-data = {
-    "월": ["1월","2월","3월","4월","5월","6월","7월","8월","9월"],
-    "SMP(원/kWh)": [117.11,116.39,113.12,124.63,125.50,118.02,120.39,117.39,112.90],
-    "REC(원/kWh)": [69.76,72.16,72.15,72.41,72.39,71.96,71.65,71.86,71.97],
-}
-smp_df = pd.DataFrame(data)
+st.set_page_config(page_title="태양광 수익 & 금융 모델", layout="wide")
+st.title("🌞 태양광 수익 & 금융 시뮬레이션")
+st.caption("📅 기준: 하루 3.6시간 발전 기준, 2025년 9월 SMP 112.9원, REC 71.97원 기준")
 
 # -----------------------------
-# 2️⃣ 기본정보 입력
+# 2️⃣ 입력 정보
 # -----------------------------
-st.title("태양광 수익성 분석 대시보드")
-st.caption("📅 기준: 하루 3.6시간 발전 기준 (2025년 9월 SMP 112.9원 기준)")
+st.sidebar.header("1️⃣ 발전소 정보 입력")
 
 # 발전소 타입
-type_choice = st.radio("발전소 타입 선택", ["노지형", "지붕형"], horizontal=True)
-
-if type_choice == "노지형":
-    install_cost = 120_000_000  # 1.2억
+plant_type = st.sidebar.radio("발전소 타입", ["노지형", "지붕형"])
+if plant_type == "노지형":
     rec_factor = 1.0
+    base_area = 3000  # 평당 1MW
+    install_cost_per_100kw = 12000  # 만원
 else:
-    install_cost = 100_000_000  # 1억
     rec_factor = 1.5
-    st.info("지붕형은 REC 가중치 1.5가 적용됩니다.")
+    base_area = 2000
+    install_cost_per_100kw = 10000  # 만원
+
+st.sidebar.info(f"{plant_type} | REC 가중치 {rec_factor}")
+
+# 면적 입력
+area_py = st.sidebar.number_input("부지 면적 (평)", min_value=1, value=3000, step=1)
+area_m2 = area_py * 3.3
+capacity_kw = area_py / base_area * 1000
+st.sidebar.write(f"계산된 발전용량: {capacity_kw:.0f} kW ({area_m2:.0f} ㎡)")
+
+# SMP & REC 단가
+smp_price = st.sidebar.number_input("SMP 단가 (원/kWh)", value=112.9)
+rec_price = st.sidebar.number_input("REC 단가 (원/kWh)", value=71.97)
+
+# 금융 정보
+st.sidebar.header("2️⃣ 금융 정보")
+interest_rate = st.sidebar.number_input("대출 이자율 (%)", value=6.0)
+loan_term_years = st.sidebar.number_input("대출 상환기간 (년)", value=20)
+repay_type = "원리금 균등 상환"
 
 # -----------------------------
-# 3️⃣ SMP·REC 단가표
+# 3️⃣ 월별 수익 & 상환 계산
 # -----------------------------
-st.subheader("📊 월별 SMP·REC 단가표")
-st.dataframe(
-    smp_df.style.format({"SMP(원/kWh)":"{:.2f}", "REC(원/kWh)":"{:.2f}"}),
-    width=500, height=250
-)
+months = np.arange(1, loan_term_years*12 + 1)
+monthly_gen = capacity_kw * 3.6 * 30  # kWh, 하루 3.6시간, 30일 기준
+monthly_profit = monthly_gen * (smp_price + rec_price * rec_factor)  # 원 단위
 
-# -----------------------------
-# 4️⃣ 수익 계산 함수
-# -----------------------------
-def calc_monthly_profit(smp, rec, capacity_kw=100, hours=3.6, rec_factor=1.0):
-    """월간 순수익 계산 (원 단위)"""
-    monthly_gen = capacity_kw * hours * 30  # kWh
-    revenue = (smp + rec * rec_factor) * monthly_gen
-    return revenue
-
-# -----------------------------
-# 5️⃣ 10년(120개월) 수익 및 원금 계산
-# -----------------------------
-months = np.arange(1, 121)
-monthly_smp = np.mean(smp_df["SMP(원/kWh)"])
-monthly_rec = np.mean(smp_df["REC(원/kWh)"])
-
-# 월별 수익 및 누적 계산
-monthly_profit = calc_monthly_profit(monthly_smp, monthly_rec, rec_factor=rec_factor)
+# 누적 수익
 cumulative_profit = monthly_profit * months
-remaining_principal = install_cost - cumulative_profit
-remaining_principal = np.maximum(remaining_principal, 0)
+
+# 총 설치비용
+total_install_cost = capacity_kw / 100 * install_cost_per_100kw * 10_000  # 설치비용 원 단위
+
+# 원금 상환 계산 (원리금 균등)
+r = interest_rate / 100 / 12  # 월 이자율
+n = loan_term_years * 12
+monthly_payment = total_install_cost * r * (1+r)**n / ((1+r)**n - 1)
+remaining_loan = total_install_cost - np.cumsum([monthly_payment]*len(months))
+
+# 남은 원금 계산
+remaining_principal = np.maximum(total_install_cost - cumulative_profit, 0)
 
 # -----------------------------
-# 6️⃣ 표로 표시
+# 4️⃣ 표 만들기
 # -----------------------------
-st.subheader("📅 기간별 총 수익 및 남은 원금")
-
+st.subheader("📊 월별 수익 & 금융 상환 모델")
 summary_df = pd.DataFrame({
-    "운영 개월": months,
+    "월": months,
     "총 누적 수익 (만원)": (cumulative_profit / 10_000).round(1),
-    "남은 원금 (만원)": (remaining_principal / 10_000).round(1)
+    "남은 원금 (만원)": (remaining_principal / 10_000).round(1),
+    "월별 상환금 (만원)": (monthly_payment / 10_000).round(1),
+    "잔여 원금 (만원)": (remaining_loan / 10_000).round(1)
 })
 
-# 보기 쉽게 12개월 단위로 나누어 표시 (1년 간격)
-summary_df_display = summary_df[summary_df["운영 개월"] % 12 == 0].reset_index(drop=True)
-summary_df_display["운영 연수"] = (summary_df_display["운영 개월"] / 12).astype(int)
-summary_df_display = summary_df_display[["운영 연수", "총 누적 수익 (만원)", "남은 원금 (만원)"]]
+# 보기 편하게 12개월 단위(1년 단위)만 표시
+summary_df_display = summary_df[summary_df["월"] % 12 == 0].reset_index(drop=True)
+summary_df_display["운영 연수"] = (summary_df_display["월"] / 12).astype(int)
+summary_df_display = summary_df_display[["운영 연수", "총 누적 수익 (만원)", "남은 원금 (만원)",
+                                         "월별 상환금 (만원)", "잔여 원금 (만원)"]]
 
-st.dataframe(summary_df_display.style.format("{:.1f}"), width=500, height=300)
+st.dataframe(summary_df_display, width=800, height=400)
 
 # -----------------------------
-# 7️⃣ 회수기간 계산
+# 5️⃣ 예상 회수기간
 # -----------------------------
 payback_month = np.argmax(remaining_principal == 0) + 1 if np.any(remaining_principal == 0) else None
 if payback_month:
     payback_years = payback_month / 12
     st.success(f"✅ 예상 회수기간: 약 {payback_years:.1f}년 ({payback_month}개월)")
 else:
-    st.warning("❗ 10년 내 투자비 회수가 어려움")
+    st.warning("❗ 대출 기간 내 투자비 회수가 어려움")

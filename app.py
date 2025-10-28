@@ -119,14 +119,21 @@ if st.button("계산하기"):
     st.dataframe(summary_df_display.style.format("{:,}").applymap(color_remaining, subset=['잔여 원금 (만원)']), width=900, height=400)
 
     # -----------------------------
-    # 6️⃣ 원리금 균등상환 표 (20년 = 240개월)
+    # 6️⃣ 원리금 균등상환 표 (연 단위)
     # -----------------------------
-    st.subheader("🏦 원리금 균등상환 (20년, 월별)")
-    loan_months = np.arange(1, loan_term_years*12 + 1)
-    loan_df = pd.DataFrame({
-        "월별 상환금 (만원)": [round(monthly_payment / 10_000, 1)] * len(loan_months),
-        "월별 유지비용 (만원)": (monthly_maintenance_array/10_000).round(0),
-        "잔여 원금 (만원)": (remaining_loan_array/10_000).round(0)
+    st.subheader("🏦 원리금 균등상환 (연 단위)")
+
+    # 12개월 단위로 집계
+    years = np.arange(1, loan_term_years+1)
+    loan_df_yearly = pd.DataFrame({
+        "월별 상환금 (만원)": [round(monthly_payment/10_000,1)*12 for _ in years],
+        "월별 유지비용 (만원)": [(monthly_maintenance_array[(y-1)*12:y*12]/10_000).round(0).sum() for y in years],
+        "잔여 원금 (만원)": [remaining_loan_array[y*12 -1]/10_000 for y in years]
     })
-    loan_df.index = [f"{i}개월차" for i in loan_months]
-    st.dataframe(loan_df.style.format("{:,}").applymap(color_remaining, subset=['잔여 원금 (만원)']), width=900, height=400)
+    loan_df_yearly.index = [f"{y}년차" for y in years]
+
+    # 잔여원금 색상 적용
+    def color_remaining(val):
+        return 'color: red' if val > 0 else 'color: black'
+
+    st.dataframe(loan_df_yearly.style.format("{:,}").applymap(color_remaining, subset=['잔여 원금 (만원)']), width=900, height=500)

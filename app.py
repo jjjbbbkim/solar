@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import matplotlib.pyplot as plt
 
 # 페이지 기본 설정
 st.set_page_config(page_title="태양광 수익 계산기", layout="wide")
@@ -39,8 +40,8 @@ smp_style = (
     .applymap(lambda v: highlight_extremes(v, "REC 가격(원/kWh)"), subset=["REC 가격(원/kWh)"])
 )
 
-st.markdown("### 📊 2025년 월별 육지 SMP & REC 단가 (3.6시간 발전 기준)")
-st.table(smp_style.hide(axis="index"))  # ✅ 인덱스 숨김
+st.markdown("### 📊 2025년 월별 육지 SMP & REC 단가")
+st.table(smp_style.hide(axis="index"))
 
 # 기준 단가 (9월)
 current_smp = 112.90
@@ -60,6 +61,8 @@ else:
     rec_weight = 1.5
     base_area = 2000
     install_cost_per_100kw = 10000  # 1.0억 (만원 단위)
+
+st.info(f"🔹 선택된 타입: **{plant_type}형**  |  REC 가중치: **{rec_weight}배**")
 
 # -----------------------
 # 3️⃣ 부지 면적 입력
@@ -114,3 +117,33 @@ if st.button("💡 수익 계산하기"):
     for repay_year in repay_options:
         monthly_payment = (total_install_cost * (1 + interest_rate/100)) / (repay_year * 12)
         st.write(f"{repay_year}년 상환 시 월 납입금: {monthly_payment:,.0f} 만원")
+
+    # -----------------------
+    # 7️⃣ 회수기간 변화 그래프
+    # -----------------------
+    st.markdown("### 📉 회수기간 민감도 분석 그래프")
+
+    smp_variations = [smp * (1 - 0.1), smp, smp * (1 + 0.1)]
+    rec_variations = [rec * (1 - 0.1), rec, rec * (1 + 0.1)]
+    labels = ["-10%", "기준", "+10%"]
+
+    payback_smp = []
+    for s in smp_variations:
+        rev = annual_gen_kwh * (s + rec * rec_weight)
+        payback_smp.append((total_install_cost * 10000) / rev)
+
+    payback_rec = []
+    for r in rec_variations:
+        rev = annual_gen_kwh * (smp + r * rec_weight)
+        payback_rec.append((total_install_cost * 10000) / rev)
+
+    fig, ax = plt.subplots()
+    ax.plot(labels, payback_smp, marker='o', label='SMP 변동')
+    ax.plot(labels, payback_rec, marker='s', label='REC 변동')
+    ax.set_xlabel('변동률')
+    ax.set_ylabel('원금 회수 기간 (년)')
+    ax.set_title('SMP/REC 변동에 따른 회수기간 변화')
+    ax.legend()
+    ax.grid(True)
+
+    st.pyplot(fig)

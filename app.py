@@ -56,19 +56,13 @@ if st.button("계산하기"):
     months = np.arange(1, loan_term_years*12 + 1)
     total_install_cost = capacity_kw / 100 * install_cost_per_100kw * 10_000  # 원 단위
 
-    # 월별 유지비용 (총 사업비의 3% ÷ 12)
+    # 고정 유지비용 (총 사업비 3% ÷ 12)
     monthly_maintenance = total_install_cost * 0.03 / 12
 
     # 월별 발전량 (3.6시간/일, 30일 기준) + 효율 감소 0.4%/년
-    monthly_gen_list = []
-    for m in months:
-        year = (m-1)//12  # 경과 년수
-        efficiency_factor = 1 - 0.004 * year  # 연 0.4% 감소
-        monthly_gen = capacity_kw * 3.6 * 30 * efficiency_factor
-        monthly_gen_list.append(monthly_gen)
-    monthly_gen_array = np.array(monthly_gen_list)
+    monthly_gen_array = capacity_kw * 3.6 * 30 * (1 - 0.004 * ((months-1)//12))
 
-    # 월별 수익
+    # 월별 수익 (유지비용은 고정)
     monthly_profit = monthly_gen_array * (smp_price + rec_price * rec_factor) - monthly_maintenance
     cumulative_profit = np.cumsum(monthly_profit)
     remaining_principal = np.maximum(total_install_cost - cumulative_profit, 0)
@@ -83,34 +77,33 @@ if st.button("계산하기"):
     # 5️⃣ 투자금 기반 금융 모델 표
     # -----------------------------
     st.subheader("📈 투자금 기준 금융 모델")
-    st.caption("※ 유지비용 3%, 발전효율 연 0.4% 감소 적용")
+    st.caption("※ 유지비용 3% 고정, 발전효율 연 0.4% 감소 적용")
     summary_df = pd.DataFrame({
-        "월": months,
+        "운영 연수": (months / 12).astype(int),
         "총 누적 수익 (만원)": (cumulative_profit / 10_000).round(1),
         "남은 원금 (만원)": (remaining_principal / 10_000).round(1),
         "월별 상환금 (만원)": round(monthly_payment / 10_000,1),
+        "월별 유지비용 (만원)": round(monthly_maintenance / 10_000,1),
         "잔여 원금 (만원)": (remaining_loan / 10_000).round(1)
     })
-    summary_df_display = summary_df[summary_df["월"] % 12 == 0].reset_index(drop=True)
-    summary_df_display["운영 연수"] = (summary_df_display["월"] / 12).astype(int)
-    summary_df_display = summary_df_display[["운영 연수", "총 누적 수익 (만원)", "남은 원금 (만원)",
-                                             "월별 상환금 (만원)", "잔여 원금 (만원)"]]
-    st.dataframe(summary_df_display, width=800, height=400)
+
+    # 12개월 단위로 표시
+    summary_df_display = summary_df[months % 12 == 0].reset_index(drop=True)
+    st.dataframe(summary_df_display, width=900, height=400)
 
     # -----------------------------
     # 6️⃣ 20년 원리금 균등 상환 + 유지비용 포함
     # -----------------------------
     st.subheader("🏦 20년 원리금 균등상환 + 유지비용")
-    st.caption("※ 유지비용 3%, 발전효율 연 0.4% 감소 적용")
+    st.caption("※ 유지비용 3% 고정, 발전효율 연 0.4% 감소 적용")
     loan_df = pd.DataFrame({
-        "월": months,
+        "운영 연수": (months/12).astype(int),
         "월별 상환금 (만원)": round(monthly_payment / 10_000 + monthly_maintenance / 10_000, 1),
+        "월별 유지비용 (만원)": round(monthly_maintenance / 10_000, 1),
         "잔여 원금 (만원)": (remaining_loan / 10_000).round(1)
     })
-    loan_df_display = loan_df[loan_df["월"] % 12 == 0].reset_index(drop=True)
-    loan_df_display["운영 연수"] = (loan_df_display["월"]/12).astype(int)
-    loan_df_display = loan_df_display[["운영 연수", "월별 상환금 (만원)", "잔여 원금 (만원)"]]
-    st.dataframe(loan_df_display, width=600, height=400)
+    loan_df_display = loan_df[months % 12 == 0].reset_index(drop=True)
+    st.dataframe(loan_df_display, width=700, height=400)
 
     # -----------------------------
     # 7️⃣ 예상 회수기간

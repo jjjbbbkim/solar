@@ -87,11 +87,13 @@ if st.button("계산하기"):
     n = loan_term_years * 12
     monthly_payment = total_install_cost * r * (1+r)**n / ((1+r)**n - 1)
 
-    # 잔여원금 계산
+    # 잔여원금 계산 (마지막 달 모두 상환)
     remaining_loan_array = []
     remaining = total_install_cost
-    for mp in [monthly_payment]*len(months_array):
+    for i, mp in enumerate([monthly_payment]*len(months_array)):
         remaining -= mp
+        if i == len(months_array)-1:  # 마지막 달은 0으로
+            remaining = 0
         remaining_loan_array.append(max(remaining,0))
     remaining_loan_array = np.array(remaining_loan_array)
 
@@ -101,17 +103,18 @@ if st.button("계산하기"):
     years = np.arange(1, loan_term_years+1)
     summary_yearly = pd.DataFrame({
         "총 누적 수익 (만원)": [int(cumulative_profit[y*12-1]/10_000) for y in years],
+        "월별 상환금 (만원)": [int(round(monthly_payment/10_000,0)*12) for y in years],
+        "월별 유지비용 (만원)": [int(monthly_maintenance_array[(y-1)*12:y*12].sum()/10_000) for y in years],
         "남은 원금/순수익 (만원)": [
             int(remaining_principal[y*12-1]/10_000) if remaining_principal[y*12-1]>0
             else int((cumulative_profit[y*12-1]-total_install_cost)/10_000)
             for y in years
-        ],
-        "월별 상환금 (만원)": [int(round(monthly_payment/10_000,0)*12) for y in years],
-        "월별 유지비용 (만원)": [int(monthly_maintenance_array[(y-1)*12:y*12].sum()/10_000) for y in years]
+        ]
     })
     summary_yearly.index = [f"{y}년차" for y in years]
 
     def color_remaining(val):
+        # 잔여원금 >0 빨강, 순수익 검정
         return 'color: red' if val > 0 else 'color: black'
 
     st.subheader("📈 금융 모델 (연 단위)")

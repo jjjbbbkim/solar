@@ -55,17 +55,16 @@ loan_term_years = st.number_input("대출 상환기간 (년)", value=20)
 # -----------------------------
 if st.button("계산하기"):
 
+    months_total = loan_term_years * 12
+
     # -----------------------------
     # 월별 유지비용 계산 (3% 시작, 매년 1% 증가)
     # -----------------------------
-    months_total = loan_term_years * 12
     base_maintenance_rate = 0.03
     monthly_maintenance_array = np.array([
         capacity_kw/100*install_cost_per_100kw*10_000 * base_maintenance_rate * (1.01 ** ((m-1)//12)) / 12
         for m in range(1, months_total+1)
     ])
-
-    total_investment = capacity_kw/100*install_cost_per_100kw*10_000 + monthly_maintenance_array.sum()
 
     # -----------------------------
     # 월별 발전량 (3.6시간/일, 30일 기준) + 효율 감소 0.4%/년
@@ -81,6 +80,7 @@ if st.button("계산하기"):
     # -----------------------------
     # 원리금 균등상환 계산 (20년, 마지막 달 잔여원금 0)
     # -----------------------------
+    total_investment = capacity_kw/100*install_cost_per_100kw*10_000
     r = interest_rate/100/12
     n = months_total
     monthly_payment = total_investment * r * (1+r)**n / ((1+r)**n - 1)
@@ -104,8 +104,7 @@ if st.button("계산하기"):
             else int(round((cumulative_profit[y*12-1]-total_investment)/10_000,0))
             for y in years
         ]
-    })
-    summary_yearly.index = [f"{y}년차" for y in years]
+    }, index=[f"{y}년차" for y in years])
 
     def color_remaining(val):
         return 'color: red' if val < 0 else 'color: black'
@@ -121,7 +120,7 @@ if st.button("계산하기"):
         "월별 유지비용 (만원)": [int(round(monthly_maintenance_array[(y-1)*12:y*12].sum()/10_000,0)) for y in years],
         "잔여 원금 (만원)": [int(round(remaining_loan_array[y*12-1]/10_000,0)) for y in years]
     }, index=[f"{y}년차" for y in years])
-    st.subheader("🏦 원리금 균등상환 (연 단위)")
+    st.subheader("🏦 원리금 균등상환 (연 단위, 20년 완전 상환)")
     st.dataframe(loan_df_yearly.style.applymap(color_remaining, subset=['잔여 원금 (만원)']), width=900, height=500)
 
     # -----------------------------

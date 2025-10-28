@@ -105,8 +105,9 @@ if st.button("계산하기"):
         "총 누적 수익 (만원)": [int(cumulative_profit[y*12-1]/10_000) for y in years],
         "월별 상환금 (만원)": [int(round(monthly_payment/10_000,0)*12) for y in years],
         "월별 유지비용 (만원)": [int(monthly_maintenance_array[(y-1)*12:y*12].sum()/10_000) for y in years],
+        # 남은 원금/순수익: 남아있으면 음수, 순수익이면 양수
         "남은 원금/순수익 (만원)": [
-            int(remaining_principal[y*12-1]/10_000) if remaining_principal[y*12-1]>0
+            -int(remaining_principal[y*12-1]/10_000) if remaining_principal[y*12-1]>0
             else int((cumulative_profit[y*12-1]-total_install_cost)/10_000)
             for y in years
         ]
@@ -114,8 +115,7 @@ if st.button("계산하기"):
     summary_yearly.index = [f"{y}년차" for y in years]
 
     def color_remaining(val):
-        # 잔여원금 >0 빨강, 순수익 검정
-        return 'color: red' if val > 0 else 'color: black'
+        return 'color: red' if val < 0 else 'color: black'  # 음수 → 빨강, 순수익 → 검정
 
     st.subheader("📈 금융 모델 (연 단위)")
     st.dataframe(summary_yearly.style.applymap(color_remaining, subset=['남은 원금/순수익 (만원)']), width=900, height=500)
@@ -138,6 +138,4 @@ if st.button("계산하기"):
     payback_month = np.argmax(remaining_principal == 0) + 1 if np.any(remaining_principal == 0) else None
     if payback_month:
         payback_years = payback_month / 12
-        st.success(f"✅ 예상 회수기간: 약 {payback_years:.1f}년 ({payback_month}개월)")
-    else:
-        st.warning("❗ 대출 기간 내 투자비 회수가 어려움")
+        st.success(f"✅ 예상 회수기간: 약 {payback_years:.1f}년 ({p_

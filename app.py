@@ -123,7 +123,7 @@ if st.button("계산하기"):
     # -----------------------------
     st.subheader("🏦 원리금 균등상환")
     loan_df = pd.DataFrame({
-        "월별 상환금 (만원)": round(monthly_payment / 10_000, 0)
+        "월별 상환금 (만원)": round(monthly_payment / 10_000, 1)
         "월별 유지비용 (만원)": (monthly_maintenance_array/10_000).round(0),
         "잔여 원금 (만원)": (remaining_loan_array/10_000).round(0)
     })
@@ -139,4 +139,5 @@ if st.button("계산하기"):
         st.success(f"✅ 예상 회수기간: 약 {payback_years:.1f}년 ({payback_month}개월)")
     else:
         st.warning("❗ 대출 기간 내 투자비 회수가 어려움")
+
 

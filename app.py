@@ -100,10 +100,10 @@ if st.button("계산하기"):
     # -----------------------------
     summary_df = pd.DataFrame({
         "총 누적 수익 (만원)": (cumulative_profit/10_000).round(0).astype(int),
-        "남은 원금 (만원)": (remaining_principal/10_000).round(1),
-        "월별 상환금 (만원)": (monthly_payment/10_000 + monthly_maintenance_array/10_000).round(1),
-        "월별 유지비용 (만원)": (monthly_maintenance_array/10_000).round(1),
-        "잔여 원금 (만원)": (remaining_loan_array/10_000).round(1)
+        "남은 원금 (만원)": (remaining_principal/10_000).round(0),
+        "월별 상환금 (만원)": (monthly_payment/10_000 + monthly_maintenance_array/10_000).round(0),
+        "월별 유지비용 (만원)": (monthly_maintenance_array/10_000).round(0),
+        "잔여 원금 (만원)": (remaining_loan_array/10_000).round(0)
     })
 
     # 12개월 단위로 필터링
@@ -123,9 +123,9 @@ if st.button("계산하기"):
     # -----------------------------
     st.subheader("🏦 원리금 균등상환")
     loan_df = pd.DataFrame({
-        "월별 상환금 (만원)": (monthly_payment/10_000).round(1),
-        "월별 유지비용 (만원)": (monthly_maintenance_array/10_000).round(1),
-        "잔여 원금 (만원)": (remaining_loan_array/10_000).round(1)
+        "월별 상환금 (만원)": round(monthly_payment / 10_000, 0)
+        "월별 유지비용 (만원)": (monthly_maintenance_array/10_000).round(0),
+        "잔여 원금 (만원)": (remaining_loan_array/10_000).round(0)
     })
     loan_df.index = [f"{i}년차" for i in range(1,len(loan_df)+1)]
     st.dataframe(loan_df.style.format("{:,}").applymap(color_remaining, subset=['잔여 원금 (만원)']), width=700, height=400)
@@ -139,3 +139,4 @@ if st.button("계산하기"):
         st.success(f"✅ 예상 회수기간: 약 {payback_years:.1f}년 ({payback_month}개월)")
     else:
         st.warning("❗ 대출 기간 내 투자비 회수가 어려움")
+

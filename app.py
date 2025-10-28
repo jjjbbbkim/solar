@@ -7,22 +7,25 @@ import numpy as np
 # -----------------------------
 st.set_page_config(page_title="태양광 수익 & 금융 모델", layout="wide")
 st.title("🌞 태양광 수익 & 금융 시뮬레이션")
-st.caption("📅 기준: 하루 3.6시간 발전 기준, 2025년 9월 SMP 112.9원, REC 71.97원 기준")
+st.caption("📅 기준: 하루 3.6시간 발전 기준, SMP/REC 단가 적용")
 
 # -----------------------------
-# 2️⃣ 월별 SMP/REC 단가표
+# 2️⃣ SMP/REC 단가표
 # -----------------------------
 st.header("📊 월별 SMP/REC 단가표")
-data = {
-    "월": ["1월","2월","3월","4월","5월","6월","7월","8월","9월"],
-    "SMP(원/kWh)": [117.11,116.39,113.12,124.63,125.50,118.02,120.39,117.39,112.90],
-    "REC(원/kWh)": [69.76,72.16,72.15,72.41,72.39,71.96,71.65,71.86,71.97],
-}
-smp_df = pd.DataFrame(data)
-st.dataframe(smp_df.style.format({"SMP(원/kWh)":"{:,}", "REC(원/kWh)":"{:,}"}), width=500, height=250)
+
+months = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"]
+smp_values = [117.11,116.39,113.12,124.63,125.50,118.02,120.39,117.39,112.90,0,0,0]  # 10~12월은 데이터 없음
+rec_values = [69.76,72.16,72.15,72.41,72.39,71.96,71.65,71.86,71.97,0,0,0]
+
+smp_df = pd.DataFrame({
+    "SMP(원/kWh)": smp_values,
+    "REC(원/kWh)": rec_values
+}, index=months)
+st.dataframe(smp_df.style.format("{:,}").set_properties(**{'text-align': 'center'}), width=500, height=300)
 
 # -----------------------------
-# 3️⃣ 입력 정보
+# 3️⃣ 발전소 정보 입력
 # -----------------------------
 st.header("📝 발전소 정보 입력")
 plant_type = st.selectbox("발전소 타입", ["노지형", "지붕형"])
@@ -53,89 +56,74 @@ loan_term_years = st.number_input("대출 상환기간 (년)", value=20)
 # -----------------------------
 if st.button("계산하기"):
 
-    months = np.arange(1, loan_term_years*12 + 1)
+    months_array = np.arange(1, loan_term_years*12 + 1)
     total_install_cost = capacity_kw / 100 * install_cost_per_100kw * 10_000  # 원 단위
 
     # -----------------------------
     # 월별 유지비용 계산 (3.5% 시작, 매년 1% 증가)
     # -----------------------------
     base_maintenance_rate = 0.035
-    monthly_maintenance_array = []
-    for m in months:
-        year = (m-1)//12
-        annual_rate = base_maintenance_rate * (1.01 ** year)
-        monthly_maintenance = total_install_cost * annual_rate / 12
-        monthly_maintenance_array.append(monthly_maintenance)
-    monthly_maintenance_array = np.array(monthly_maintenance_array)
+    monthly_maintenance_array = np.array([
+        total_install_cost * base_maintenance_rate * (1.01 ** ((m-1)//12)) / 12
+        for m in months_array
+    ])
 
     # -----------------------------
     # 월별 발전량 (3.6시간/일, 30일 기준) + 효율 감소 0.4%/년
     # -----------------------------
-    monthly_gen_array = capacity_kw * 3.6 * 30 * (1 - 0.004 * ((months-1)//12))
+    monthly_gen_array = capacity_kw * 3.6 * 30 * (1 - 0.004 * ((months_array-1)//12))
 
-    # 월별 수익 (유지비용은 월별 배열)
+    # -----------------------------
+    # 월별 수익
+    # -----------------------------
     monthly_profit = monthly_gen_array * (smp_price + rec_price * rec_factor) - monthly_maintenance_array
     cumulative_profit = np.cumsum(monthly_profit)
     remaining_principal = np.maximum(total_install_cost - cumulative_profit, 0)
 
     # -----------------------------
-    # 원리금 균등 상환
+    # 원리금 균등 상환 계산
     # -----------------------------
     r = interest_rate / 100 / 12
     n = loan_term_years * 12
     monthly_payment = total_install_cost * r * (1+r)**n / ((1+r)**n - 1)
 
-    # 정확한 잔여원금 계산
+    # 잔여원금 계산
     remaining_loan_array = []
     remaining = total_install_cost
-    for mp in [monthly_payment]*len(months):
+    for mp in [monthly_payment]*len(months_array):
         remaining -= mp
-        remaining_loan_array.append(max(remaining, 0))
+        remaining_loan_array.append(max(remaining,0))
     remaining_loan_array = np.array(remaining_loan_array)
 
     # -----------------------------
-    # 5️⃣ 투자금 기반 금융 모델 표
+    # 5️⃣ 금융 모델 표 (12개월 단위)
     # -----------------------------
-    st.subheader("📈 투자금 기준 금융 모델")
-    st.caption("※ 유지비용 3.5% 시작, 연 1% 증가, 발전효율 연 0.4% 감소 적용")
     summary_df = pd.DataFrame({
-        "운영 연수": (months / 12).astype(int),
-        "총 누적 수익 (만원)": (cumulative_profit / 10_000).round(1),
-        "남은 원금 (만원)": (remaining_principal / 10_000).round(1),
-        "월별 상환금 (만원)": round(monthly_payment / 10_000,1),
-        "월별 유지비용 (만원)": (monthly_maintenance_array / 10_000).round(1),
-        "잔여 원금 (만원)": (remaining_loan_array / 10_000).round(1)
+        "1년차": (months_array/12).astype(int),
+        "총 누적 수익 (만원)": (cumulative_profit/10_000).round(1),
+        "남은 원금 (만원)": (remaining_principal/10_000).round(1),
+        "월별 상환금 (만원)": (monthly_payment/10_000 + monthly_maintenance_array/10_000).round(1),
+        "월별 유지비용 (만원)": (monthly_maintenance_array/10_000).round(1),
+        "잔여 원금 (만원)": (remaining_loan_array/10_000).round(1)
     })
 
-    # 12개월 단위로 표시
-    summary_df_display = summary_df[months % 12 == 0].reset_index(drop=True)
+    # 12개월 단위로 필터링
+    summary_df_display = summary_df[months_array % 12 == 0].reset_index(drop=True)
+    # 운영연수 index 설정
+    summary_df_display.index = [f"{i}년차" for i in range(1,len(summary_df_display)+1)]
 
-    # 색상 적용 함수 (잔여 원금)
+    # 잔여원금 색상 적용
     def color_remaining(val):
         return 'color: red' if val > 0 else 'color: black'
 
     st.dataframe(summary_df_display.style.format("{:,}").applymap(color_remaining, subset=['잔여 원금 (만원)']), width=900, height=400)
 
     # -----------------------------
-    # 6️⃣ 20년 원리금 균등 상환 + 유지비용 포함
-    # -----------------------------
-    st.subheader("🏦 20년 원리금 균등상환 + 유지비용")
-    st.caption("※ 유지비용 3.5% 시작, 연 1% 증가, 발전효율 연 0.4% 감소 적용")
-    loan_df = pd.DataFrame({
-        "운영 연수": (months/12).astype(int),
-        "월별 상환금 (만원)": round(monthly_payment / 10_000 + monthly_maintenance_array / 10_000, 1),
-        "월별 유지비용 (만원)": (monthly_maintenance_array / 10_000).round(1),
-        "잔여 원금 (만원)": (remaining_loan_array / 10_000).round(1)
-    })
-    loan_df_display = loan_df[months % 12 == 0].reset_index(drop=True)
-    st.dataframe(loan_df_display.style.format("{:,}").applymap(color_remaining, subset=['잔여 원금 (만원)']), width=700, height=400)
-
-    # -----------------------------
-    # 7️⃣ 예상 회수기간
+    # 6️⃣ 예상 회수기간
     # -----------------------------
     payback_month = np.argmax(remaining_principal == 0) + 1 if np.any(remaining_principal == 0) else None
     if payback_month:
         payback_years = payback_month / 12
         st.success(f"✅ 예상 회수기간: 약 {payback_years:.1f}년 ({payback_month}개월)")
     else:
-        st.warning("❗ 대출 기간 내 투자비 회수가 어려움")
+        st.

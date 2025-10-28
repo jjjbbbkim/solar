@@ -15,7 +15,7 @@ st.caption("📅 기준: 하루 3.6시간 발전 기준, SMP/REC 단가 적용")
 st.header("📊 월별 SMP/REC 단가표")
 
 months = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"]
-smp_values = [117.11,116.39,113.12,124.63,125.50,118.02,120.39,117.39,112.90,0,0,0]  # 10~12월은 데이터 없음
+smp_values = [117.11,116.39,113.12,124.63,125.50,118.02,120.39,117.39,112.90,0,0,0]
 rec_values = [69.76,72.16,72.15,72.41,72.39,71.96,71.65,71.86,71.97,0,0,0]
 
 smp_df = pd.DataFrame({
@@ -99,8 +99,7 @@ if st.button("계산하기"):
     # 5️⃣ 금융 모델 표 (12개월 단위)
     # -----------------------------
     summary_df = pd.DataFrame({
-        "운영 연수": (months_array/12).astype(int),
-        "총 누적 수익 (만원)": (cumulative_profit/10_000).round(1),
+        "총 누적 수익 (만원)": (cumulative_profit/10_000).round(0).astype(int),
         "남은 원금 (만원)": (remaining_principal/10_000).round(1),
         "월별 상환금 (만원)": (monthly_payment/10_000 + monthly_maintenance_array/10_000).round(1),
         "월별 유지비용 (만원)": (monthly_maintenance_array/10_000).round(1),
@@ -116,10 +115,23 @@ if st.button("계산하기"):
     def color_remaining(val):
         return 'color: red' if val > 0 else 'color: black'
 
+    st.subheader("📈 금융 모델 (월별 상환 + 유지비용)")
     st.dataframe(summary_df_display.style.format("{:,}").applymap(color_remaining, subset=['잔여 원금 (만원)']), width=900, height=400)
 
     # -----------------------------
-    # 6️⃣ 예상 회수기간
+    # 6️⃣ 원리금 균등상환 표
+    # -----------------------------
+    st.subheader("🏦 원리금 균등상환")
+    loan_df = pd.DataFrame({
+        "월별 상환금 (만원)": (monthly_payment/10_000).round(1),
+        "월별 유지비용 (만원)": (monthly_maintenance_array/10_000).round(1),
+        "잔여 원금 (만원)": (remaining_loan_array/10_000).round(1)
+    })
+    loan_df.index = [f"{i}년차" for i in range(1,len(loan_df)+1)]
+    st.dataframe(loan_df.style.format("{:,}").applymap(color_remaining, subset=['잔여 원금 (만원)']), width=700, height=400)
+
+    # -----------------------------
+    # 7️⃣ 예상 회수기간
     # -----------------------------
     payback_month = np.argmax(remaining_principal == 0) + 1 if np.any(remaining_principal == 0) else None
     if payback_month:

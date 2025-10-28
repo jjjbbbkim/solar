@@ -138,4 +138,6 @@ if st.button("계산하기"):
     payback_month = np.argmax(remaining_principal == 0) + 1 if np.any(remaining_principal == 0) else None
     if payback_month:
         payback_years = payback_month / 12
-        st.success(f"✅ 예상 회수기간: 약 {payback_years:.1f}년 ({p_
+        st.success(f"✅ 예상 회수기간: 약 {payback_years:.1f}년 ({payback_month}개월)")
+    else:
+        st.warning("❗ 대출 기간 내 투자비 회수가 어려움")

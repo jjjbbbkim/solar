@@ -1,94 +1,112 @@
 import streamlit as st
 import pandas as pd
 
-# ===== 페이지 설정 =====
 st.set_page_config(page_title="태양광 수익 계산기", layout="wide")
-st.title("🌞 태양광 발전 수익 계산기")
+st.title("🌞 태양광 수익 계산기 (2025년 기준)")
 
-# ===== 1️⃣ 발전소 타입 선택 =====
-st.sidebar.header("1️⃣ 발전소 타입")
-plant_type = st.sidebar.selectbox("발전소 타입 선택", ["노지", "지붕"])
+# -----------------------
+# 1️⃣ SMP & REC 표 (2025년 1~9월, 수동입력)
+# -----------------------
+months = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"]
+smp_values = [117.11,116.39,113.12,124.63,125.50,118.02,120.39,117.39,112.90,None,None,None]
+rec_values = [69.76,72.16,72.15,72.41,72.39,71.96,71.65,71.86,71.97,None,None,None]
 
-# ===== 2️⃣ 면적 입력 =====
-st.sidebar.header("2️⃣ 면적 입력")
-area_input_type = st.sidebar.radio("면적 입력 단위", ["평", "㎡"])
-if area_input_type == "평":
-    area = st.sidebar.number_input("면적(평)", min_value=1, step=1)
-    area_m2 = area * 3.3
-else:
-    area_m2 = st.sidebar.number_input("면적(㎡)", min_value=1, step=1)
-    area = int(area_m2 / 3.3)
-
-# ===== 3️⃣ 발전용량 계산 =====
-if plant_type == "노지":
-    capacity = int((area / 3000) * 1000)
-    rec_weight = 1.0
-else:
-    capacity = int((area / 2000) * 1000)
-    rec_weight = 1.5
-
-st.write(f"✅ 계산된 발전용량: {capacity} kW")
-st.write(f"✅ 적용 REC 가중치: {rec_weight}")
-
-# ===== 4️⃣ SMP/REC 단가 입력 =====
-st.sidebar.header("3️⃣ 가격 입력")
-default_smp = 112.9  # 9월 SMP 기준
-smp = st.sidebar.number_input("SMP 단가(원/kWh)", value=default_smp, step=0.01)
-rec_price = st.sidebar.number_input("REC 단가(원/kWh)", value=65.00, step=0.01)
-
-# ===== 5️⃣ SMP 월별 가격 표시 (2열 세로표, 강조) =====
-st.subheader("📊 2025년 육지 SMP 가격")
-
-months = ["1월","2월","3월","4월","5월","6월","7월","8월","9월"]
-smp_values = [117.11,116.39,113.12,124.63,125.5,118.02,120.39,117.39,112.9]
-
-smp_df = pd.DataFrame({
+smp_rec_df = pd.DataFrame({
     "월": months,
-    "SMP 가격(원/kWh)": smp_values
+    "SMP 가격(원/kWh)": smp_values,
+    "REC 가격(원/kWh)": rec_values
 })
 
-# 강조 함수: 최고값 빨강, 최저값 파랑
-def highlight_extremes(val):
-    if val == smp_df["SMP 가격(원/kWh)"].max():
+# 강조 함수 (SMP/REC 각각 최고 빨강, 최저 파랑)
+def highlight_extremes(val, column):
+    if pd.isna(val): 
+        return ''
+    col_max = smp_rec_df[column].max()
+    col_min = smp_rec_df[column].min()
+    if val == col_max:
         return 'color: red; font-weight: bold'
-    elif val == smp_df["SMP 가격(원/kWh)"].min():
+    elif val == col_min:
         return 'color: blue; font-weight: bold'
     else:
         return ''
 
-# 2열 세로표 출력 (인덱스 제거)
-st.table(
-    smp_df.style.applymap(highlight_extremes, subset=["SMP 가격(원/kWh)"])
-    .format({"SMP 가격(원/kWh)":"{:.2f}"})
-)
+smp_style = smp_rec_df.style.format({
+    "SMP 가격(원/kWh)": "{:.2f}",
+    "REC 가격(원/kWh)": "{:.2f}"
+}).applymap(lambda v: highlight_extremes(v, "SMP 가격(원/kWh)"), subset=["SMP 가격(원/kWh)"]) \
+  .applymap(lambda v: highlight_extremes(v, "REC 가격(원/kWh)"), subset=["REC 가격(원/kWh)"])
 
-# ===== 6️⃣ 금융 정보 입력 =====
-st.sidebar.header("4️⃣ 금융 정보")
-default_total_cost = int((capacity / 100) * 1200)  # 100kW당 1200만원
-total_cost = st.sidebar.number_input("총 설치비용(만원)", value=default_total_cost, step=1)
-self_ratio = st.sidebar.number_input("자기자본 비율(%)", value=20, step=1)
-loan_amount = total_cost * (1 - self_ratio / 100)
-interest_rate = 0.06
-years_list = [5, 10, 20]
+st.markdown("### 📊 2025년 월별 육지 SMP & REC 단가")
+st.table(smp_style)
 
-# ===== 7️⃣ 수익 및 금융 계산 =====
-if st.button("💰 계산하기"):
-    utilization_rate = 0.16  # 연간 평균 발전률
-    annual_generation = capacity * 1000 * 24 * 365 * utilization_rate  # kWh
+# 현재 기준 (10월 → 9월 데이터 반영)
+current_smp = 112.90
+current_rec = 71.97
 
-    annual_smp = annual_generation * smp
-    annual_rec = annual_generation * rec_price * rec_weight
-    annual_revenue = annual_smp + annual_rec
+# -----------------------
+# 2️⃣ 발전소 기본 정보
+# -----------------------
+st.markdown("### ⚙️ 1. 발전소 타입 선택")
+plant_type = st.radio("발전소 타입을 선택하세요", ["노지", "지붕"])
 
-    st.subheader("📊 수익 결과")
-    st.write(f"연간 발전량: {int(annual_generation):,} kWh")
-    st.write(f"연간 SMP 수익: {annual_smp:,.2f} 원")
-    st.write(f"연간 REC 수익: {annual_rec:,.2f} 원")
-    st.write(f"총 연간 수익: {annual_revenue:,.2f} 원")
+if plant_type == "노지":
+    rec_weight = 1.0
+    base_area = 3000  # 평당 1MW
+else:
+    rec_weight = 1.5
+    base_area = 2000
 
-    st.subheader("🏦 금융 상환 시뮬레이션")
-    for years in years_list:
-        n = years * 12
-        r = interest_rate / 12
-        monthly_payment = loan_amount * (r * (1 + r) ** n) / ((1 + r) ** n - 1)
-        st.write(f"{years}년 상환 월 납부금: {monthly_payment:,.2f} 만원")
+# -----------------------
+# 3️⃣ 면적 입력
+# -----------------------
+st.markdown("### 📐 2. 부지 면적 입력")
+area_py = st.number_input("면적 (평)", min_value=1, value=3000, step=1)
+area_m2 = area_py * 3.3
+st.write(f"면적(㎡): {area_m2:,.0f} ㎡")
+
+# 발전용량 계산
+capacity_kw = area_py / base_area * 1000
+st.success(f"예상 발전용량: {capacity_kw:.0f} kW")
+
+# -----------------------
+# 4️⃣ SMP/REC 정보
+# -----------------------
+st.markdown("### ⚡ 3. SMP & REC 단가")
+
+smp = st.number_input("SMP 단가 (원/kWh)", value=float(current_smp))
+rec = st.number_input("REC 단가 (원/kWh)", value=float(current_rec))
+st.info(f"※ 기준 단가: 2025년 9월 SMP {current_smp}원/kWh, REC {current_rec}원/kWh 반영")
+
+# -----------------------
+# 5️⃣ 금융 정보
+# -----------------------
+st.markdown("### 💰 4. 금융 정보")
+install_cost_per_100kw = 1200  # 만원 단위
+interest_rate = 6.0
+loan_term = 20  # 년
+repay_options = [5, 10]
+
+# -----------------------
+# 6️⃣ 계산하기 버튼
+# -----------------------
+if st.button("💡 수익 계산하기"):
+    # 설치비용
+    total_install_cost = capacity_kw / 100 * install_cost_per_100kw  # 만원 단위
+    # 연간 발전량 (하루 4시간, 365일)
+    annual_gen_kwh = capacity_kw * 4 * 365
+    # 연간 수익
+    annual_revenue = annual_gen_kwh * (smp + rec * rec_weight)
+    # 원금 회수 기간
+    payback_years = (total_install_cost * 10000) / annual_revenue
+
+    st.subheader("📈 계산 결과")
+    st.write(f"총 설치비용: {total_install_cost:,.0f} 만원")
+    st.write(f"연간 예상 발전량: {annual_gen_kwh:,.0f} kWh")
+    st.write(f"연간 예상 수익: {annual_revenue:,.0f} 원")
+    st.write(f"원금 회수 기간: {payback_years:.1f} 년")
+
+    # 상환 시뮬레이션 (단순 이자 계산)
+    st.markdown("#### 💳 원리금 상환 시뮬레이션")
+    for repay_year in repay_options:
+        monthly_payment = (total_install_cost * (1 + interest_rate/100)) / (repay_year * 12)
+        st.write(f"{repay_year}년 상환 시 월 납입금: {monthly_payment:,.0f} 만원")

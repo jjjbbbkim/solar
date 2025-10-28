@@ -119,26 +119,14 @@ if st.button("계산하기"):
     st.dataframe(summary_df_display.style.format("{:,}").applymap(color_remaining, subset=['잔여 원금 (만원)']), width=900, height=400)
 
     # -----------------------------
-    # 6️⃣ 원리금 균등상환 표
+    # 6️⃣ 원리금 균등상환 표 (20년 = 240개월)
     # -----------------------------
-    st.subheader("🏦 원리금 균등상환")
+    st.subheader("🏦 원리금 균등상환 (20년, 월별)")
+    loan_months = np.arange(1, loan_term_years*12 + 1)
     loan_df = pd.DataFrame({
-        "월별 상환금 (만원)": round(monthly_payment / 10_000, 1),
+        "월별 상환금 (만원)": [round(monthly_payment / 10_000, 1)] * len(loan_months),
         "월별 유지비용 (만원)": (monthly_maintenance_array/10_000).round(0),
         "잔여 원금 (만원)": (remaining_loan_array/10_000).round(0)
     })
-    loan_df.index = [f"{i}년차" for i in range(1,len(loan_df)+1)]
-    st.dataframe(loan_df.style.format("{:,}").applymap(color_remaining, subset=['잔여 원금 (만원)']), width=700, height=400)
-
-    # -----------------------------
-    # 7️⃣ 예상 회수기간
-    # -----------------------------
-    payback_month = np.argmax(remaining_principal == 0) + 1 if np.any(remaining_principal == 0) else None
-    if payback_month:
-        payback_years = payback_month / 12
-        st.success(f"✅ 예상 회수기간: 약 {payback_years:.1f}년 ({payback_month}개월)")
-    else:
-        st.warning("❗ 대출 기간 내 투자비 회수가 어려움")
-
-
-
+    loan_df.index = [f"{i}개월차" for i in loan_months]
+    st.dataframe(loan_df.style.format("{:,}").applymap(color_remaining, subset=['잔여 원금 (만원)']), width=900, height=400)

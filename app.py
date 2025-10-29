@@ -101,33 +101,16 @@ if st.button("계산하기"):
         remaining_loan_array.append(max(remaining, 0))
     remaining_loan_array = np.array(remaining_loan_array)
 
-    # 남은 원금 or 순수익 계산
-    remaining_balance = cumulative_profit - loan_amount
-    remaining_balance = np.where(remaining_balance < 0, remaining_balance, remaining_balance)
-
     # -----------------------------
     # 5️⃣ 금융 모델 (연 단위)
     # -----------------------------
     summary_df = pd.DataFrame({
-        "총 누적 수익 (만원)": (cumulative_profit[11::12] / 10_000).round(0).astype(int),
-        "월별 유지비용 (만원)": (monthly_maintenance_array[11::12] / 10_000).round(0),
-        "연간 상환금 (만원)": (monthly_payment * 12 / 10_000).round(0),
-        "남은 원금/순수익 (만원)": ((cumulative_profit[11::12] - loan_amount) / 10_000).round(0)
+        "총 누적 수익 (만원)": np.round(cumulative_profit[11::12] / 10_000, 0).astype(int),
+        "월별 유지비용 (만원)": np.round(monthly_maintenance_array[11::12] / 10_000, 0),
+        "연간 상환금 (만원)": np.round((monthly_payment * 12) / 10_000, 0),
+        "남은 원금/순수익 (만원)": np.round((cumulative_profit[11::12] - loan_amount) / 10_000, 0)
     }, index=[f"{i}년차" for i in range(1, loan_term_years + 1)])
 
+    # 색상 처리
     def color_balance(val):
-        return 'color: red' if val < 0 else 'color: black'
-
-    st.subheader("📈 금융 모델 (연도별)")
-    st.dataframe(
-        summary_df.style.format("{:,}")
-        .applymap(color_balance, subset=['남은 원금/순수익 (만원)']),
-        width=900, height=400
-    )
-
-    # -----------------------------
-    # 6️⃣ 원리금 균등상환 요약
-    # -----------------------------
-    st.subheader("🏦 원리금 균등상환 요약")
-    st.write(f"📅 월 상환액: **{monthly_payment:,.0f} 원**")
-    st.write(f"💸 총 대출금: {loan_amount:,.0f} 원 / {loan_term_years}년 완전 상환")
+        return 'color: red' if val < 0 else 'color

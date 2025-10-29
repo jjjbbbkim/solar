@@ -111,6 +111,20 @@ if st.button("계산하기"):
         "남은 원금/순수익 (만원)": np.round((cumulative_profit[11::12] - loan_amount) / 10_000, 0)
     }, index=[f"{i}년차" for i in range(1, loan_term_years + 1)])
 
-    # 색상 처리
+    # 색상 처리 함수 (여기 오류 있었음)
     def color_balance(val):
-        return 'color: red' if val < 0 else 'color
+        return 'color: red' if val < 0 else 'color: black'
+
+    st.subheader("📈 금융 모델 (연도별)")
+    st.dataframe(
+        summary_df.style.format("{:,}")
+        .applymap(color_balance, subset=['남은 원금/순수익 (만원)']),
+        width=900, height=400
+    )
+
+    # -----------------------------
+    # 6️⃣ 원리금 균등상환 요약
+    # -----------------------------
+    st.subheader("🏦 원리금 균등상환 요약")
+    st.write(f"📅 월 상환액: **{monthly_payment:,.0f} 원**")
+    st.write(f"💸 총 대출금: {loan_amount:,.0f} 원 / {loan_term_years}년 완전 상환")

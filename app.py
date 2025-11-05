@@ -3,139 +3,141 @@ import pandas as pd
 import numpy as np
 
 # -----------------------------
-# 1️⃣ 페이지 설정
+# 🌞 페이지 기본 설정
 # -----------------------------
-st.set_page_config(page_title="태양광 금융모델 (순수익 상환형)", layout="wide")
-st.title("🌞 태양광 금융모델 (순수익 상환형)")
-st.caption("📊 1년차 이자만 상환, 2년차부터 순수익으로 대출상환")
+st.set_page_config(page_title="태양광 수익 & 금융 시뮬레이션", layout="wide")
+st.title("🌞 태양광 수익 & 금융 시뮬레이션")
+st.caption("📅 기준: 하루 3.6시간 발전 기준, SMP/REC 단가 및 금융 흐름 자동 계산")
 
 # -----------------------------
-# 2️⃣ 발전소 정보 입력
+# 📊 SMP / REC 단가표
 # -----------------------------
-st.header("📝 발전소 기본 정보")
+months = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"]
+smp_values = [117.11,116.39,113.12,124.63,125.50,118.02,120.39,117.39,112.90,0,0,0]
+rec_values = [69.76,72.16,72.15,72.41,72.39,71.96,71.65,71.86,71.97,0,0,0]
 
-# 단위 선택
-area_unit = st.radio("입력 단위 선택", ["평", "㎡"], horizontal=True)
+smp_df = pd.DataFrame({
+    "SMP(원/kWh)": smp_values,
+    "REC(원/kWh)": rec_values
+}, index=months)
+st.subheader("📊 월별 SMP/REC 단가표")
+st.dataframe(smp_df.style.format("{:,}"), width=500, height=300)
 
-if area_unit == "평":
-    area_py = st.number_input("부지 면적 (평)", min_value=1, value=3000, step=1)
-    area_m2 = area_py * 3.3
-else:
-    area_m2 = st.number_input("부지 면적 (㎡)", min_value=1, value=10000, step=1)
-    area_py = area_m2 / 3.3
+# -----------------------------
+# 🏗 발전소 기본 정보 입력
+# -----------------------------
+st.header("📝 발전소 정보 입력")
 
-st.write(f"면적 변환: **{area_py:.0f} 평 / {area_m2:.0f} ㎡**")
-
-# 발전소 타입
 plant_type = st.selectbox("발전소 타입", ["노지형", "지붕형"])
 if plant_type == "노지형":
     rec_factor = 1.0
     base_area = 3000
-    install_cost_per_100kw = 12000  # 만원
+    install_cost_per_100kw = 12000  # 만원 단위
 else:
     rec_factor = 1.5
     base_area = 2000
-    install_cost_per_100kw = 10000  # 만원
-    st.caption(f"REC 가중치 1.5 적용 → REC 단가 × 1.5 = **{round(71.97*1.5, 1)} 원/kWh**")
+    install_cost_per_100kw = 10000  # 만원 단위
+
+# 면적 단위 선택
+area_unit = st.radio("면적 단위 선택", ["평", "㎡"], horizontal=True)
+if area_unit == "평":
+    area_py = st.number_input("부지 면적 (평)", min_value=1, value=3000, step=1)
+    area_m2 = area_py * 3.3
+else:
+    area_m2 = st.number_input("부지 면적 (㎡)", min_value=1, value=9900, step=1)
+    area_py = area_m2 / 3.3
+
+st.write(f"면적: {area_py:.0f}평 ({area_m2:.0f}㎡)")
 
 capacity_kw = area_py / base_area * 1000
-st.write(f"📐 계산된 발전용량: **{capacity_kw:.0f} kW**")
+st.write(f"발전용량: **{capacity_kw:.0f} kW**")
 
-# 단가 입력
 smp_price = st.number_input("SMP 단가 (원/kWh)", value=112.9)
 rec_price = st.number_input("REC 단가 (원/kWh)", value=71.97)
 
+if plant_type == "지붕형":
+    st.info(f"REC 가중치 1.5 적용 시 REC 단가: {rec_price * 1.5:.2f}원/kWh")
+
 # -----------------------------
-# 3️⃣ 금융 정보 입력
+# 💰 금융 정보 입력
 # -----------------------------
 st.header("💰 금융 정보")
 
 interest_rate = st.number_input("대출 이자율 (%)", value=6.0)
-loan_term_years = st.number_input("대출 상환기간 (년)", value=20)
-loan_ratio = st.number_input("총 사업비 대비 대출 비율 (%)", value=80)
+loan_term_years = st.number_input("운영연수 (년)", value=20)
+loan_ratio = st.number_input("대출 비율 (%)", value=70)
 
 # -----------------------------
-# 4️⃣ 계산 버튼
+# 📈 계산 버튼
 # -----------------------------
 if st.button("계산하기"):
-    total_install_cost = capacity_kw / 100 * install_cost_per_100kw * 10_000  # 원 단위
-    loan_amount = total_install_cost * loan_ratio / 100
-    st.subheader("💵 투자 개요")
-    st.write(f"총 사업비: **{total_install_cost:,.0f} 원**")
-    st.write(f"대출금액 ({loan_ratio}%): **{loan_amount:,.0f} 원**")
+
+    # 사업비 계산
+    total_install_cost = capacity_kw / 100 * install_cost_per_100kw * 10_000  # 원
+    loan_amount = total_install_cost * (loan_ratio / 100)
+    equity_amount = total_install_cost - loan_amount
+
+    st.markdown(f"**총 사업비:** {total_install_cost/10_000:,.0f}만원")
+    st.markdown(f"**대출금:** {loan_amount/10_000:,.0f}만원 / **자기자본:** {equity_amount/10_000:,.0f}만원")
 
     # -----------------------------
-    # 5️⃣ 연도별 수익 및 상환 계산
+    # 📆 연도별 수익 / 상환 계산
     # -----------------------------
     r = interest_rate / 100
     remaining_loan = loan_amount
-
+    cumulative_profit = 0
     results = []
-    base_maintenance_rate = 0.03
-    base_revenue = capacity_kw * 3.6 * 365 * (smp_price + rec_price * rec_factor)  # 1년차 기준 발전수익
+
+    base_revenue = capacity_kw * 3.6 * 365 * (smp_price + rec_price * rec_factor)
+    base_maintenance_rate = 0.03  # 3%
 
     for year in range(1, loan_term_years + 1):
-        # 발전효율 감소
+        # 효율감소 반영
         efficiency = 1 - 0.004 * (year - 1)
         annual_generation = capacity_kw * 3.6 * 365 * efficiency
         annual_revenue = annual_generation * (smp_price + rec_price * rec_factor)
 
-        # 유지비용 (1년차 3%, 이후 연 1%씩 증가)
+        # 유지비용: 1년차 기준 3%, 매년 1% 증가
         maintenance = base_revenue * base_maintenance_rate * (1.01 ** (year - 1))
+        net_profit = annual_revenue - maintenance  # 순수익 (세전)
 
-        # 순수익 (세전)
-        net_profit = annual_revenue - maintenance
-
-        # 연간 이자
-        interest_payment = remaining_loan * r
-
-        # 1년차는 이자만 상환
-        if year == 1:
-            repayment = interest_payment
-            principal_payment = 0
+        # 💰 상환 계산
+        if remaining_loan > 0:
+            if year == 1:
+                repayment = remaining_loan * r  # 이자만
+            else:
+                repayment = min(net_profit, remaining_loan + remaining_loan * r)
+                remaining_loan = max(remaining_loan + remaining_loan * r - repayment, 0)
         else:
-            principal_payment = min(net_profit, remaining_loan)
-            repayment = interest_payment + principal_payment
-            remaining_loan -= principal_payment
+            repayment = 0
 
-        # 잔여대출이 모두 상환되면 순수익 흑자 계산
-        surplus = 0
-        if remaining_loan == 0:
-            surplus = max(net_profit - interest_payment, 0)
+        cumulative_profit += net_profit
+        net_after_loan = cumulative_profit - remaining_loan
 
         results.append({
             "연도": f"{year}년차",
             "발전수익 (만원)": round(annual_revenue / 10_000),
             "유지비용 (만원)": round(maintenance / 10_000),
             "순수익 (만원)": round(net_profit / 10_000),
-            "이자 (만원)": round(interest_payment / 10_000),
             "상환금 (만원)": round(repayment / 10_000),
-            "잔여대출 (만원)": round(remaining_loan / 10_000),
-            "순수익(흑자) (만원)": round(surplus / 10_000)
+            "잔여대출/순수익 (만원)": round(net_after_loan / 10_000)
         })
 
-        if remaining_loan <= 0:
-            break  # 대출 상환 완료 시 종료
+    df = pd.DataFrame(results).set_index("연도")
+
+    # 색상 스타일링
+    def color_value(val):
+        color = 'red' if val < 0 else 'black'
+        return f'color: {color}'
+
+    st.subheader("📈 금융 모델 (20년 시뮬레이션)")
+    st.dataframe(df.style.applymap(color_value, subset=["잔여대출/순수익 (만원)"]), width=1000, height=500)
 
     # -----------------------------
-    # 6️⃣ 표로 출력
+    # ✅ 회수기간 추정
     # -----------------------------
-    df = pd.DataFrame(results)
-    df.set_index("연도", inplace=True)
-
-    def color_loan(val):
-        return 'color: red' if val > 0 else 'color: black'
-
-    st.subheader("📈 금융모델 (연간 순수익 상환 방식)")
-    st.dataframe(df.style.format("{:,}")
-                 .applymap(color_loan, subset=["잔여대출 (만원)"]),
-                 width=950, height=500)
-
-    # -----------------------------
-    # 7️⃣ 회수기간 표시
-    # -----------------------------
-    payback_year = next((i+1 for i, v in enumerate(df["잔여대출 (만원)"]) if v == 0), None)
-    if payback_year:
-        st.success(f"✅ 예상 대출 완전 상환 시점: {payback_year}년차")
+    profit_year = next((i+1 for i, v in enumerate(df["잔여대출/순수익 (만원)"]) if v > 0), None)
+    if profit_year:
+        st.success(f"✅ 예상 흑자 전환 시점: 약 {profit_year}년차")
     else:
-        st.warning("❗ 20년 내 대출 상환이 완료되지 않습니다.")
+        st.warning("❗ 20년 내 흑자 전환 어려움")

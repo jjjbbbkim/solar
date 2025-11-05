@@ -2,9 +2,8 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-st.set_page_config(page_title="태양광 금융 시뮬레이션 (최종 수정)", layout="wide")
+st.set_page_config(page_title="태양광 금융 시뮬레이션", layout="wide")
 st.title("🌞 태양광 금융 시뮬레이션")
-st.caption("1년차는 이자만 상환")
 
 # SMP/REC 단가표 (예시)
 months = [f"{i}월" for i in range(1, 13)]
@@ -93,10 +92,10 @@ if st.button("계산하기"):
 
         results.append({
             "연도": f"{year}년차",
-            "발전수익 (만원)": int(round(annual_revenue / 10_000)),
-            "유지비용 (만원)": int(round(maintenance / 10_000)),
-            "순수익 (만원)": int(round(net_profit / 10_000)),
-            "실질 누적포지션 (만원)": int(round(net_position / 10_000))
+            "발전 수익": int(round(annual_revenue / 10_000)),
+            "유지 비용": int(round(maintenance / 10_000)),
+            "순수익": int(round(net_profit / 10_000)),
+            "누적 금액": int(round(net_position / 10_000))
         })
 
     df = pd.DataFrame(results).set_index("연도")
@@ -106,14 +105,15 @@ if st.button("계산하기"):
         return "color: red" if v < 0 else "color: black"
 
     st.subheader("📈 20년 실질 누적포지션")
-    st.caption("1년차는 이자만 상환")
-    st.dataframe(df.style.applymap(color_pos, subset=["실질 누적포지션 (만원)"]).format("{:,}"))
+    st.caption("1년차는 이자만 상환 (단위 : 만 원)")
+    st.dataframe(df.style.applymap(color_pos, subset=["누적 금액"]).format("{:,}"))
 
     # 흑자 전환 연도 찾기
-    pos_array = np.array(df["실질 누적포지션 (만원)"])
+    pos_array = np.array(df["누적 금액"])
     payback_idx = next((i for i, v in enumerate(pos_array) if v >= 0), None)
     if payback_idx is not None:
         st.success(f"✅ 실질 흑자 전환 시점: {payback_idx + 1}년차")
     else:
         st.warning("❗ 20년 내 흑자 전환 불가")
+
 

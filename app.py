@@ -93,8 +93,8 @@ if st.button("계산하기"):
         results.append({
             "연도": f"{year}년차",
             "발전 수익": int(round(annual_revenue / 10_000)),
-            "유지 비용": int(round(maintenance / 10_000)),
-            "순수익": int(round(net_profit / 10_000)),
+            "유지비용": int(round(maintenance / 10_000)),
+            "순 수익": int(round(net_profit / 10_000)),
             "누적 금액": int(round(net_position / 10_000))
         })
 
@@ -115,5 +115,6 @@ if st.button("계산하기"):
         st.success(f"✅ 실질 흑자 전환 시점: {payback_idx + 1}년차")
     else:
         st.warning("❗ 20년 내 흑자 전환 불가")
+
 
 

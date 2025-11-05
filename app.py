@@ -7,8 +7,8 @@ st.title("🌞 태양광 금융 시뮬레이션")
 
 # SMP/REC 단가표 (예시)
 months = [f"{i}월" for i in range(1, 13)]
-smp_values = [117.11, 116.39, 113.12, 124.63, 125.50, 118.02, 120.39, 117.39, 112.90, 0, 0, 0]
-rec_values = [69.76, 72.16, 72.15, 72.41, 72.39, 71.96, 71.65, 71.86, 71.97, 0, 0, 0]
+smp_values = [117.11, 116.39, 113.12, 124.63, 125.50, 118.02, 120.39, 117.39, 112.90, 101.16, 0, 0]
+rec_values = [69.76, 72.16, 72.15, 72.41, 72.39, 71.96, 71.65, 71.86, 71.97, 72.31, 0, 0]
 smp_df = pd.DataFrame({"SMP(원/kWh)": smp_values, "REC(원/kWh)": rec_values}, index=months)
 
 st.subheader("📊 SMP / REC 단가표")
@@ -39,8 +39,8 @@ else:
 capacity_kw = area_py / base_area * 1000
 st.write(f"예상 발전용량: {capacity_kw:.0f} kW")
 
-smp_price = st.number_input("SMP 단가 (원/kWh)", value=112.9)
-rec_price = st.number_input("REC 단가 (원/kWh)", value=71.97)
+smp_price = st.number_input("SMP 단가 (원/kWh)", value=101.16)
+rec_price = st.number_input("REC 단가 (원/kWh)", value=72.31)
 interest_rate = st.number_input("대출 이자율 (%)", value=6.0)
 loan_term_years = st.number_input("운영연수 (년)", value=20, min_value=1)
 loan_ratio = st.number_input("대출 비율 (%)", value=80, min_value=0, max_value=100)
@@ -115,6 +115,7 @@ if st.button("계산하기"):
         st.success(f"✅ 실질 흑자 전환 시점: {payback_idx + 1}년차")
     else:
         st.warning("❗ 20년 내 흑자 전환 불가")
+
 
 
 

@@ -3,8 +3,8 @@ import pandas as pd
 import numpy as np
 
 st.set_page_config(page_title="태양광 금융 시뮬레이션 (최종 수정)", layout="wide")
-st.title("🌞 태양광 금융 시뮬레이션 (최종 수정본)")
-st.caption("1년차는 이자만 상환, 이후 순수익 전액을 우선 상환. 실질 누적 포지션만 표시")
+st.title("🌞 태양광 금융 시뮬레이션")
+st.caption("1년차는 이자만 상환")
 
 # SMP/REC 단가표 (예시)
 months = [f"{i}월" for i in range(1, 13)]
@@ -13,7 +13,7 @@ rec_values = [69.76, 72.16, 72.15, 72.41, 72.39, 71.96, 71.65, 71.86, 71.97, 0, 
 smp_df = pd.DataFrame({"SMP(원/kWh)": smp_values, "REC(원/kWh)": rec_values}, index=months)
 
 st.subheader("📊 SMP / REC 단가표")
-st.dataframe(smp_df.style.format("{:.2f}"), width=500, height=250)
+st.dataframe(smp_df.style.format("{:.2f}"), width=400, height=250)
 
 # 입력
 st.header("📝 기본 입력값")
@@ -105,7 +105,8 @@ if st.button("계산하기"):
     def color_pos(v):
         return "color: red" if v < 0 else "color: black"
 
-    st.subheader("📈 20년 실질 누적포지션 (순수익 우선 상환)")
+    st.subheader("📈 20년 실질 누적포지션")
+    st.caption("1년차는 이자만 상환")
     st.dataframe(df.style.applymap(color_pos, subset=["실질 누적포지션 (만원)"]).format("{:,}"))
 
     # 흑자 전환 연도 찾기
@@ -115,3 +116,4 @@ if st.button("계산하기"):
         st.success(f"✅ 실질 흑자 전환 시점: {payback_idx + 1}년차")
     else:
         st.warning("❗ 20년 내 흑자 전환 불가")
+

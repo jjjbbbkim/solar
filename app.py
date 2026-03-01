@@ -150,7 +150,10 @@ if st.button("계산하기"):
         return "color: red" if v < 0 else "color: black"
 
     st.subheader("📈 연차별 누적 수익금")
-    st.caption("단위: 만 원\n누적 = 잔여금 누적 - 남은 대출원금")
+    st.markdown(
+    "단위: 만 원<br>"
+    "누적 = 잔여금 누적 - 남은 대출원금",
+    unsafe_allow_html=True
 
     st.dataframe(
         df.style.applymap(color_pos, subset=["누적"]).format("{:,}"),
@@ -164,3 +167,4 @@ if st.button("계산하기"):
         st.success(f"✅ 누적 흑자 전환 시점: {payback_idx + 1}년차")
     else:
         st.warning("❗ 운영연수 내 누적 흑자 전환 불가")
+

@@ -153,13 +153,22 @@ if st.button("계산하기"):
         df.style
         .applymap(color_pos, subset=["누적"])
         .format("{:,}")
-        .set_table_styles([
-            # 연차 컬럼 너비 축소
-            {"selector": "th.col0", "props": [("min-width", "6px"), ("width", "6px")]},
-            {"selector": "td.col0", "props": [("min-width", "6px"), ("width", "6px")]},
-        ])
+        .set_table_styles(
+            [
+                # 테이블 레이아웃 고정 (폭 지정이 먹을 확률 ↑)
+                {"selector": "table", "props": [("table-layout", "fixed")]},
+    
+                # ✅ index(=연차) 칸 폭/패딩 줄이기
+                {"selector": "th.row_heading", "props": [("width", "48px"), ("min-width", "48px"), ("max-width", "48px"), ("padding", "2px 6px")]},
+                {"selector": "td.row_heading", "props": [("width", "48px"), ("min-width", "48px"), ("max-width", "48px"), ("padding", "2px 6px")]},
+    
+                # (선택) 좌상단 빈칸도 같이 줄이기
+                {"selector": "th.blank", "props": [("width", "48px"), ("min-width", "48px"), ("max-width", "48px"), ("padding", "2px 6px")]},
+            ],
+            overwrite=False,
+        )
     )
-
+    
     st.dataframe(styler, use_container_width=True)
 
     # 흑자 전환
@@ -170,5 +179,6 @@ if st.button("계산하기"):
         st.success(f"✅ 누적 흑자 전환 시점: {payback_idx + 1}년차")
     else:
         st.warning("❗ 운영연수 내 누적 흑자 전환 불가")
+
 
 

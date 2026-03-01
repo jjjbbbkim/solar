@@ -114,6 +114,7 @@ if st.button("계산하기"):
         df.style
         .applymap(lambda v: "color: red" if v < 0 else "color: black", subset=["누적"])
         .format("{:,}")
-        .hide_index(),
+        .hide(axis="index"),
         use_container_width=True
     )
+

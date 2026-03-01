@@ -155,8 +155,8 @@ if st.button("계산하기"):
         .format("{:,}")
         .set_table_styles([
             # 연차 컬럼 너비 축소
-            {"selector": "th.col0", "props": [("min-width", "60px"), ("width", "60px")]},
-            {"selector": "td.col0", "props": [("min-width", "60px"), ("width", "60px")]},
+            {"selector": "th.col0", "props": [("min-width", "6px"), ("width", "6px")]},
+            {"selector": "td.col0", "props": [("min-width", "6px"), ("width", "6px")]},
         ])
     )
 
@@ -170,4 +170,5 @@ if st.button("계산하기"):
         st.success(f"✅ 누적 흑자 전환 시점: {payback_idx + 1}년차")
     else:
         st.warning("❗ 운영연수 내 누적 흑자 전환 불가")
+
 

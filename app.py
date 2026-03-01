@@ -142,34 +142,25 @@ if st.button("계산하기"):
         return "color: red" if v < 0 else "color: black"
 
     st.subheader("📈 연차별 누적 수익금")
-
+    
     st.markdown(
         "단위: 만 원<br>"
         "누적 = 잔여금 누적 - 남은 대출원금",
         unsafe_allow_html=True
     )
-
-    styler = (
-        df.style
-        .applymap(color_pos, subset=["누적"])
-        .format("{:,}")
-        .set_table_styles(
-            [
-                # 테이블 레이아웃 고정 (폭 지정이 먹을 확률 ↑)
-                {"selector": "table", "props": [("table-layout", "fixed")]},
     
-                # ✅ index(=연차) 칸 폭/패딩 줄이기
-                {"selector": "th.row_heading", "props": [("width", "48px"), ("min-width", "48px"), ("max-width", "48px"), ("padding", "2px 6px")]},
-                {"selector": "td.row_heading", "props": [("width", "48px"), ("min-width", "48px"), ("max-width", "48px"), ("padding", "2px 6px")]},
-    
-                # (선택) 좌상단 빈칸도 같이 줄이기
-                {"selector": "th.blank", "props": [("width", "48px"), ("min-width", "48px"), ("max-width", "48px"), ("padding", "2px 6px")]},
-            ],
-            overwrite=False,
-        )
+    st.dataframe(
+        df,
+        use_container_width=True,
+        column_config={
+            "연차": st.column_config.NumberColumn(width="small"),
+            "발전금": st.column_config.NumberColumn(width="medium"),
+            "상환금": st.column_config.NumberColumn(width="medium"),
+            "유지비": st.column_config.NumberColumn(width="medium"),
+            "잔여금": st.column_config.NumberColumn(width="medium"),
+            "누적": st.column_config.NumberColumn(width="medium"),
+        },
     )
-    
-    st.dataframe(styler, use_container_width=True)
 
     # 흑자 전환
     pos_array = np.array(df["누적"])
@@ -179,6 +170,7 @@ if st.button("계산하기"):
         st.success(f"✅ 누적 흑자 전환 시점: {payback_idx + 1}년차")
     else:
         st.warning("❗ 운영연수 내 누적 흑자 전환 불가")
+
 
 
 

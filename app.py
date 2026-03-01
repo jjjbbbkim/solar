@@ -6,7 +6,7 @@ st.set_page_config(page_title="태양광 금융 시뮬레이션", layout="wide")
 st.title("🌞 태양광 금융 시뮬레이션")
 
 # =========================
-# 참고용 SMP/REC 단가표(예시)
+# 참고용 SMP/REC 단가표
 # =========================
 months = [f"{i}월" for i in range(1, 13)]
 smp_values = [117.11, 116.39, 113.12, 124.63, 125.50, 118.02, 120.39, 117.39, 112.90, 101.53, 94.81, 90.44]
@@ -14,7 +14,7 @@ rec_values = [69.76, 72.16, 72.15, 72.41, 72.39, 71.96, 71.65, 71.86, 71.97, 72.
 smp_df = pd.DataFrame({"SMP(원/kWh)": smp_values, "REC(원/kWh)": rec_values}, index=months)
 
 st.subheader("📊 SMP / REC 단가표")
-st.caption("참고용(과거 추이)입니다. 실제 계산은 아래에서 입력한 SMP/REC 단가 1회 값으로 20년 동일 단가로 계산합니다.")
+st.caption("참고용(과거 추이)입니다.\n실제 계산은 아래 입력 단가 1회 값으로 20년 동일 단가로 계산합니다.")
 st.dataframe(smp_df.style.format("{:.2f}"), width=420, height=260)
 
 # =========================
@@ -22,16 +22,9 @@ st.dataframe(smp_df.style.format("{:.2f}"), width=420, height=260)
 # =========================
 st.header("📝 기본 입력값")
 
-area_unit = st.radio("면적 단위", ["평", "㎡"], horizontal=True)
-if area_unit == "평":
-    area_py = st.number_input("부지 면적 (평)", value=3000, min_value=1, step=1)
-    area_m2 = area_py * 3.3
-else:
-    area_m2 = st.number_input("부지 면적 (㎡)", value=9900, min_value=1, step=1)
-    area_py = area_m2 / 3.3
-st.write(f"면적: {area_py:,.0f} 평 (≈ {area_m2:,.0f}㎡)")
-
+area_py = st.number_input("부지 면적 (평)", value=3000)
 plant_type = st.selectbox("발전소 타입", ["노지형", "지붕형"])
+
 if plant_type == "노지형":
     rec_factor = 1.0
     base_area = 3000
@@ -40,132 +33,87 @@ else:
     rec_factor = 1.5
     base_area = 2000
     install_cost_per_100kw = 10000
-    st.info(f"지붕형 REC 가중치 적용: REC × {rec_factor}")
 
 capacity_kw = area_py / base_area * 1000
 st.write(f"예상 발전용량: {capacity_kw:.0f} kW")
 
-# 단가/금융
-smp_price = st.number_input("SMP 단가 (원/kWh) - 1회 입력(20년 고정)", value=101.16)
-rec_price = st.number_input("REC 단가 (원/kWh) - 1회 입력(20년 고정)", value=72.31)
-interest_rate = st.number_input("대출 이자율 (%)", value=6.0, min_value=0.0, step=0.1)
-operation_years = st.number_input("운영연수 (년)", value=20, min_value=1, step=1)
-loan_ratio = st.number_input("대출 비율 (%)", value=80, min_value=0, max_value=100)
+smp_price = st.number_input("SMP 단가 (원/kWh)", value=101.16)
+rec_price = st.number_input("REC 단가 (원/kWh)", value=72.31)
+interest_rate = st.number_input("대출 이자율 (%)", value=6.0)
+operation_years = st.number_input("운영연수 (년)", value=20)
+loan_ratio = st.number_input("대출 비율 (%)", value=80)
 
-st.divider()
+# 고정 가정
+OM_RATE = 4.0
+OM_INFL = 1.0
 
-# =========================
-# 유지보수(O&M): 고정 가정 문구만 표시
-# =========================
-OM_RATE_FIXED = 4.0       # %
-OM_INFL_FIXED = 1.0       # % (연 물가 반영)
-st.subheader("🛠 유지보수(O&M) 가정")
 st.caption(
-    f"유지보수비는 '해당 연도 발전매출 × {OM_RATE_FIXED:.1f}%'로 계산하며, "
-    f"물가 반영률 {OM_INFL_FIXED:.1f}%를 연차별로 적용합니다."
+    f"유지보수비는 해당 연도 발전매출 × {OM_RATE:.1f}%로 계산합니다.\n"
+    f"물가 반영률 {OM_INFL:.1f}% 적용"
 )
 
-st.divider()
-
-# =========================
-# 계산
-# =========================
 if st.button("계산하기"):
-    # 총 사업비, 대출금
-    total_install_cost = capacity_kw / 100 * install_cost_per_100kw * 10_000  # 원
+
+    total_install_cost = capacity_kw / 100 * install_cost_per_100kw * 10_000
     loan_amount = total_install_cost * loan_ratio / 100
-    equity_amount = total_install_cost - loan_amount
 
-    st.write(f"💰 총 사업비: {total_install_cost:,.0f} 원")
-    st.write(f"🏦 대출금액: {loan_amount:,.0f} 원")
-    st.write(f"👤 자기자본(참고): {equity_amount:,.0f} 원")
-
-    # 기본 변수
     r = interest_rate / 100
     remaining_loan = float(loan_amount)
-    cumulative_cash = 0.0  # (상환 후 남은 현금) 누적
+    cumulative_cash = 0.0
 
-    # 1년차 기준 발전량 (업계 평균 가정: 일 평균 발전시간 3.6h)
-    base_annual_gen_kwh = capacity_kw * 3.6 * 365  # kWh/year
+    base_annual_gen = capacity_kw * 3.6 * 365
 
     results = []
+
     for year in range(1, int(operation_years) + 1):
-        # 발전효율(연 0.4% 저하)
+
         efficiency = 1 - 0.004 * (year - 1)
-        annual_gen_kwh = base_annual_gen_kwh * efficiency
+        annual_gen = base_annual_gen * efficiency
+        annual_revenue = annual_gen * (smp_price + rec_price * rec_factor)
 
-        # 발전매출(원)
-        annual_revenue_won = annual_gen_kwh * (smp_price + rec_price * rec_factor)
+        maintenance = annual_revenue * (OM_RATE / 100) * ((1 + OM_INFL / 100) ** (year - 1))
 
-        # 유지비(원): 해당 연도 매출 × 4% × 물가
-        maintenance_won = annual_revenue_won * (OM_RATE_FIXED / 100) * ((1 + OM_INFL_FIXED / 100) ** (year - 1))
+        net_profit = annual_revenue - maintenance
 
-        # 순수익(원)
-        net_profit_won = annual_revenue_won - maintenance_won
+        interest_due = remaining_loan * r if remaining_loan > 0 else 0
 
-        # 연 이자(원)
-        interest_due_won = remaining_loan * r if remaining_loan > 0 else 0.0
-
-        # 상환 로직
         if year == 1:
-            # 1년차는 이자만 납부(순수익 범위 내)
-            paid_interest_won = min(max(net_profit_won, 0.0), interest_due_won)
-            principal_payment_won = 0.0
+            principal_payment = 0
+            paid_interest = min(net_profit, interest_due)
         else:
-            # 2년차부터: 순수익으로 우선 상환(이자 → 원금)
-            paid_interest_won = min(max(net_profit_won, 0.0), interest_due_won)
-            remaining_cash_after_interest = net_profit_won - paid_interest_won
-            principal_payment_won = min(max(remaining_cash_after_interest, 0.0), remaining_loan)
+            paid_interest = min(net_profit, interest_due)
+            principal_payment = min(max(net_profit - paid_interest, 0), remaining_loan)
 
-        repayment_won = paid_interest_won + principal_payment_won
+        repayment = paid_interest + principal_payment
+        remaining_loan -= principal_payment
 
-        # 원금 차감
-        remaining_loan = max(remaining_loan - principal_payment_won, 0.0)
+        # 잔여금 = 발전금 - 유지비 - 상환금
+        residual_cash = annual_revenue - maintenance - repayment
 
-        # 상환 후 남은 현금 누적
-        cumulative_cash += (net_profit_won - repayment_won)
+        cumulative_cash += residual_cash
+        net_position = cumulative_cash - remaining_loan
 
-        # 누적 = (상환 후 남은 현금 누적) - (남은 대출원금)
-        net_position_won = cumulative_cash - remaining_loan
-
-        # 표 출력은 만원 단위
         results.append({
-            "연차": year,  # 숫자만
-            "발전금": int(round(annual_revenue_won / 10_000)),
-            "상환금": int(round(repayment_won / 10_000)),
-            "유지비": int(round(maintenance_won / 10_000)),
-            "누적": int(round(net_position_won / 10_000)),
+            "연차": year,
+            "발전금": int(round(annual_revenue / 10000)),
+            "상환금": int(round(repayment / 10000)),
+            "유지비": int(round(maintenance / 10000)),
+            "잔여금": int(round(residual_cash / 10000)),
+            "누적": int(round(net_position / 10000)),
         })
 
     df = pd.DataFrame(results)
 
-    # ===== KPI 요약 박스 =====
-    st.subheader("📌 요약(마지막 연차 기준)")
-    c1, c2, c3 = st.columns(3)
-
-    remaining_loan_mankw = int(round(remaining_loan / 10_000))
-    cumulative_cash_mankw = int(round(cumulative_cash / 10_000))
-    net_position_mankw = int(round((cumulative_cash - remaining_loan) / 10_000))
-
-    c1.metric("잔여 대출원금(만원)", f"{remaining_loan_mankw:,}")
-    c2.metric("누적 현금(만원)", f"{cumulative_cash_mankw:,}")
-    c3.metric("누적(만원)", f"{net_position_mankw:,}")
-
-    # 색상: 누적 <0 빨강, >=0 검정
-    def color_pos(v):
-        return "color: red" if v < 0 else "color: black"
-
-    st.subheader("📈 연차별 누적")
-    st.caption("단위: 만 원 · 누적 = (상환 후 남은 현금 누적) - (남은 대출원금)")
-    st.dataframe(
-        df.style.applymap(color_pos, subset=["누적"]).format("{:,}"),
-        use_container_width=True
+    st.subheader("📈 연차별 누적 수익금")
+    st.caption(
+        "단위: 만 원\n"
+        "누적 = 잔여금 누적 - 남은 대출원금"
     )
 
-    # 흑자 전환 연차 찾기
-    pos_array = np.array(df["누적"])
-    payback_idx = next((i for i, v in enumerate(pos_array) if v >= 0), None)
-    if payback_idx is not None:
-        st.success(f"✅ 누적 흑자 전환 시점: {int(df.loc[payback_idx, '연차'])}년차")
-    else:
-        st.warning("❗ 운영연수 내 누적 흑자 전환 불가")
+    st.dataframe(
+        df.style
+        .applymap(lambda v: "color: red" if v < 0 else "color: black", subset=["누적"])
+        .format("{:,}")
+        .hide_index(),
+        use_container_width=True
+    )

@@ -14,7 +14,8 @@ rec_values = [69.76, 72.16, 72.15, 72.41, 72.39, 71.96, 71.65, 71.86, 71.97, 72.
 smp_df = pd.DataFrame({"SMP(원/kWh)": smp_values, "REC(원/kWh)": rec_values}, index=months)
 
 st.subheader("📊 SMP / REC 단가표")
-st.caption("참고용(과거 추이)입니다.\n실제 계산은 아래에서 입력한 SMP/REC 단가 1회 값으로 20년 동일 단가로 계산합니다.")
+st.caption("참고용(과거 추이)입니다.<br>"
+           "실제 계산은 아래에서 입력한 SMP/REC 단가 1회 값으로 20년 동일 단가로 계산합니다.")
 st.dataframe(smp_df.style.format("{:.2f}"), width=420, height=260)
 
 # =========================
@@ -167,4 +168,5 @@ if st.button("계산하기"):
         st.success(f"✅ 누적 흑자 전환 시점: {payback_idx + 1}년차")
     else:
         st.warning("❗ 운영연수 내 누적 흑자 전환 불가")
+
 

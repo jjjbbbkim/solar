@@ -134,7 +134,7 @@ if st.button("계산하기"):
         results.append({
             "연도": f"{year}년차",
             "발전 수익": int(round(annual_revenue_won / 10_000)),   # 만원
-            "유지비용": int(round(maintenance_won / 10_000)),      # 만원
+            "유지비": int(round(maintenance_won / 10_000)),      # 만원
             "순 수익": int(round(net_profit_won / 10_000)),        # 만원
             "누적 포지션": int(round(net_position_won / 10_000))   # 만원
         })
@@ -159,7 +159,8 @@ if st.button("계산하기"):
         return "color: red" if v < 0 else "color: black"
 
     st.subheader("📈 연도별 누적 포지션")
-    st.caption("1년차는 이자만 상환 (단위: 만 원) · 누적 포지션 = (상환 후 남은 현금 누적) - (남은 대출원금)")
+    st.caption("1년차는 이자만 상환 (단위: 만 원) 
+    누적 포지션 = (상환 후 남은 현금 누적) - (남은 대출원금)")
     st.dataframe(
         df.style.applymap(color_pos, subset=["누적 포지션"]).format("{:,}"),
         use_container_width=True
@@ -172,3 +173,4 @@ if st.button("계산하기"):
         st.success(f"✅ 누적 포지션 흑자 전환 시점: {payback_idx + 1}년차")
     else:
         st.warning("❗ 운영연수 내 누적 포지션 흑자 전환 불가")
+

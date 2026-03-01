@@ -47,7 +47,6 @@ st.write(f"예상 발전용량: {capacity_kw:.0f} kW")
 
 smp_price = st.number_input("SMP 단가 (원/kWh) - 1회 입력(20년 고정)", value=101.16)
 rec_price = st.number_input("REC 단가 (원/kWh) - 1회 입력(20년 고정)", value=72.31)
-
 interest_rate = st.number_input("대출 이자율 (%)", value=6.0, min_value=0.0, step=0.1)
 operation_years = st.number_input("운영연수 (년)", value=20, min_value=1, step=1)
 loan_ratio = st.number_input("대출 비율 (%)", value=80, min_value=0, max_value=100)
@@ -58,7 +57,7 @@ st.divider()
 # 유지보수(O&M) 가정 (입력 없이 문구만)
 # =========================
 OM_RATE_FIXED = 4.0   # %
-OM_INFL_FIXED = 1.0   # % (연 물가 반영)
+OM_INFL_FIXED = 1.0   # %
 
 st.subheader("🛠 유지보수(O&M) 가정")
 st.caption(
@@ -72,7 +71,7 @@ st.divider()
 # 계산
 # =========================
 if st.button("계산하기"):
-    # 총사업비/대출
+    # 총 사업비/대출금
     total_install_cost = capacity_kw / 100 * install_cost_per_100kw * 10_000  # 원
     loan_amount = total_install_cost * loan_ratio / 100
     equity_amount = total_install_cost - loan_amount
@@ -84,19 +83,13 @@ if st.button("계산하기"):
     r = interest_rate / 100
     remaining_loan = float(loan_amount)
 
-    # 잔여금 누적(= 상환 후 남은 현금 누적)
+    # 잔여금 누적(상환 후 남는 현금 누적)
     cumulative_residual_cash = 0.0
 
     # 1년차 기준 발전량 (일 평균 발전시간 3.6h 가정)
     base_annual_gen_kwh = capacity_kw * 3.6 * 365
 
     results = []
-    last_repayment_won = 0.0
-    last_maintenance_won = 0.0
-    last_revenue_won = 0.0
-    last_residual_won = 0.0
-    last_net_position_won = 0.0
-
     for year in range(1, int(operation_years) + 1):
         # 발전효율(연 0.4% 저하)
         efficiency = 1 - 0.004 * (year - 1)
@@ -108,7 +101,7 @@ if st.button("계산하기"):
         # 유지비(원): 매출 × 4% × 물가
         maintenance_won = annual_revenue_won * (OM_RATE_FIXED / 100) * ((1 + OM_INFL_FIXED / 100) ** (year - 1))
 
-        # 운영단 순이익(원) = 매출 - 유지비
+        # 운영 기준 이익(원) = 매출 - 유지비
         operating_profit_won = annual_revenue_won - maintenance_won
 
         # 이자(원)
@@ -129,7 +122,7 @@ if st.button("계산하기"):
         # 잔여금 = 발전금 - 유지비 - 상환금
         residual_cash_won = annual_revenue_won - maintenance_won - repayment_won
 
-        # 누적 = (잔여금 누적) - (남은 대출원금)
+        # 누적 = 잔여금 누적 - 남은 대출원금
         cumulative_residual_cash += residual_cash_won
         net_position_won = cumulative_residual_cash - remaining_loan
 
@@ -142,27 +135,17 @@ if st.button("계산하기"):
             "누적": int(round(net_position_won / 10_000)),
         })
 
-        last_revenue_won = annual_revenue_won
-        last_maintenance_won = maintenance_won
-        last_repayment_won = repayment_won
-        last_residual_won = residual_cash_won
-        last_net_position_won = net_position_won
-
     df = pd.DataFrame(results)
 
-    # =========================
-    # KPI 요약 박스
-    # =========================
+    # ===== KPI 요약 =====
     st.subheader("📌 요약(마지막 연차 기준)")
     c1, c2, c3 = st.columns(3)
     c1.metric("잔여 대출원금(만원)", f"{int(round(remaining_loan / 10_000)):,}")
     c2.metric("잔여금 누적(만원)", f"{int(round(cumulative_residual_cash / 10_000)):,}")
-    c3.metric("누적(만원)", f"{int(round(last_net_position_won / 10_000)):,}")
+    c3.metric("누적(만원)", f"{int(round((cumulative_residual_cash - remaining_loan) / 10_000)):,}")
 
-    # =========================
-    # 표
-    # =========================
-    def color_neg_red(v):
+    # ===== 표 =====
+    def color_pos(v):
         return "color: red" if v < 0 else "color: black"
 
     st.subheader("📈 연차별 누적 수익금")
@@ -171,20 +154,10 @@ if st.button("계산하기"):
         "누적 = 잔여금 누적 - 남은 대출원금"
     )
 
-    styler = (
-        df.style
-        .applymap(color_neg_red, subset=["누적"])
-        .format("{:,}")
-        .set_table_styles(
-            [
-                {"selector": "th.row_heading", "props": [("display", "none")]},  # 왼쪽 index
-                {"selector": "th.blank", "props": [("display", "none")]},        # 좌상단 빈칸
-            ],
-            overwrite=False,
-        )
+    st.dataframe(
+        df.style.applymap(color_pos, subset=["누적"]).format("{:,}"),
+        use_container_width=True
     )
-
-    st.dataframe(styler, use_container_width=True)
 
     # 흑자 전환 연차 찾기(누적 >= 0)
     pos_array = np.array(df["누적"])

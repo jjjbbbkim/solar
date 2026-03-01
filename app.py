@@ -135,7 +135,7 @@ if st.button("계산하기"):
             "누적": int(round(net_position_won / 10_000)),
         })
 
-    df = pd.DataFrame(results)
+    df = pd.DataFrame(results).set_index("연차")
 
     # ===== KPI 요약 =====
     st.subheader("📌 요약(마지막 연차 기준)")
@@ -166,3 +166,4 @@ if st.button("계산하기"):
         st.success(f"✅ 누적 흑자 전환 시점: {int(df.loc[payback_idx, '연차'])}년차")
     else:
         st.warning("❗ 운영연수 내 누적 흑자 전환 불가")
+
